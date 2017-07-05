@@ -2,6 +2,7 @@
 #include <vector>
 #include <unordered_set>
 #include <string>
+#include <iostream>
 using namespace std;
 
 // Inducing Word and Part-of-Speech with Pitman-Yor Hidden Semi-Markov Models
@@ -22,7 +23,7 @@ namespace npycrf{
             _coverage = coverage;
         }
         void add_words(vector<wstring> &words){
-
+            cout << words.size() << endl;
         }
     };
 } // namespace npycrf
