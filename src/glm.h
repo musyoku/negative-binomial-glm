@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <string>
 #include <iostream>
+#include <cassert>
 using namespace std;
 
 // Inducing Word and Part-of-Speech with Pitman-Yor Hidden Semi-Markov Models
@@ -15,7 +16,7 @@ namespace npycrf{
         int _coverage;
         unordered_set<wstring> _word_set;
         unordered_map<wchar_t, int> _char_ids;
-        vector<std::pair<int, double*>> _length_feature_pair;
+        vector<std::pair<int, unsigned int*>> _length_feature_pair;
     public:
         GLM(){
             _coverage = 0;
@@ -26,17 +27,46 @@ namespace npycrf{
             _coverage = coverage;
         }
         void compile(){
-            std::pair<int, double*> pair;
+            std::pair<int, int*> pair;
             for(auto word: _word_set){
                 int word_length = word.size();
-                double* vec = generate_feature_vector(word);
+                int* features = generate_feature(word);
             }
         }
-        double* generate_feature_vector(wstring &word){
+        int* generate_feature(wstring &word){
             int length = get_feature_vector_length();
-            double* vec = new double[length];
-            vec[0] = 1; // バイアス
+            unsigned int* features = new unsigned int[length];
+            for(int i = 0;i < length;i++){
+                features[i] = 0;
+            }
+            features[0] = 1; // バイアス
+            int pos = 1;
+            wchar_t character;
+            int char_id;
+            // 1文字目
+            character = word[word.size() - 1];
+            char_id = get_character_id(character);
+            assert(char_id != -1);
+            vec[pos + char_id] = 1;
+            pos += char_id;
+            // 2文字目
+            if(word.size() > 1){
+                character = word[word.size() - 2];
+                char_id = get_character_id(character);
+                assert(char_id != -1);
+                vec[pos + char_id] = 1;
+                pos += char_id;
+            }
+            // 1文字目
+            character = word[word.size() - 1];
             return vec;
+        }
+        int get_character_id(wchar_t character){
+            auto itr = _char_ids.find(character);
+            if(itr == _char_ids.end()){
+                return -1;
+            }
+            return itr->second;
         }
         int get_feature_vector_length(){
             int length = 0;

@@ -8,7 +8,7 @@ install: ## NPYLMのビルド
 	$(CC) model.cpp -o model.so $(INCLUDE) $(CFLAGS_SO) $(BOOST)
 
 test: ## LLDB用
-	$(CC) tools/test.cpp $(CFLAGS) $(INCLUDE) $(BOOST)
+	$(CC) test.cpp $(CFLAGS) $(INCLUDE) $(BOOST)
 
 .PHONY: help
 help:
