@@ -11,12 +11,5 @@ int main(int argc, char *argv[]){
 	wcout.imbue(ctype_default);
 	wcin.imbue(ctype_default);
 
-	cout << sizeof(int) << endl;
-	cout << sizeof(double) << endl;
-	cout << sizeof(wchar_t) << endl;
-	cout << sizeof(char32_t) << endl;
-	wchar_t c = 0x3040;
-	wcout << c << endl;
-	cout << chartype::get_type(c) << endl;
-	cout << hex << c << endl;
+	PyTrainer* trainer = new PyTrainer(8, 1, 1);
 }

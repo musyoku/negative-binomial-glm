@@ -25,7 +25,7 @@ void split_word_by(const wstring &str, wchar_t delim, vector<wstring> &words){
 class PyTrainer{
 public:
 	GLM* _glm;
-	PyTrainer(int coverage){
+	PyTrainer(int coverage, int c_max, int t_max){
 		setlocale(LC_CTYPE, "ja_JP.UTF-8");
 		ios_base::sync_with_stdio(false);
 		locale default_loc("ja_JP.UTF-8");
@@ -33,7 +33,7 @@ public:
 		locale ctype_default(locale::classic(), default_loc, locale::ctype); //※
 		wcout.imbue(ctype_default);
 		wcin.imbue(ctype_default);
-		_glm = new GLM(coverage);
+		_glm = new GLM(coverage, c_max, t_max);
 	}
 	~PyTrainer(){
 
@@ -54,8 +54,8 @@ public:
 			_glm->add_words(words);
 		}
 		// cout << _glm->get_num_features() << endl;
-		// _glm->dump_characters();
-		// _glm->dump_words();
+		_glm->dump_characters();
+		_glm->dump_words();
 	}
 	void save(string filename){
 
@@ -77,7 +77,7 @@ public:
 };
 
 BOOST_PYTHON_MODULE(model){
-	python::class_<PyTrainer>("trainer", python::init<int>())
+	python::class_<PyTrainer>("trainer", python::init<int, int, int>())
 	.def("add_textfile", &PyTrainer::add_textfile)
 	.def("save", &PyTrainer::save);
 

@@ -7,6 +7,7 @@
 #include <cassert>
 #include <codecvt> 
 #include "ctype.h"
+#include "sampler.h"
 
 using namespace std;
 
@@ -17,28 +18,61 @@ namespace npycrf{
 	class GLM{
 	public:
 		int _coverage;
+		int _c_max;
+		int _t_max;
 		unordered_set<wstring> _word_set;
 		unordered_map<wchar_t, int> _char_ids;
 		vector<std::pair<int, int*>> _length_features_pair;
-		double w_bias;      // バイアス
-		double* w_c;
-		double* w_t;
-		double* w_cont;
-		double* w_ch;
-		GLM(){
-			_coverage = 0;
-		}
-		// 論文ではcoverage = 8
+		double _w_bias;      // バイアス
+		double** _w_c;
+		double** _w_t;
+		double* _w_cont;
+		double* _w_ch;
+		GLM(){ }
 		// t以前の何文字から素性ベクトルを作るか
-		GLM(int coverage){
+		// c_maxはc_iのiの範囲（0 ≤ i ≤ c_max）
+		// t_maxはt_iのiの範囲（0 ≤ i ≤ t_max）
+		// 論文ではcoverage = 8, c_max = 1, t_max = 4
+		GLM(int coverage, int c_max, int t_max){
 			_coverage = coverage;
+			_c_max = c_max;
+			_t_max = t_max;
+		}
+		void init_weights(){
+			int num_characters = _char_ids.size();
+			int num_types = 280;	// Unicode
+			_w_bias = sampler::normal(0, 1);
+			_w_c = new double*[_c_max + 1];
+			for(int i = 0;i <= _c_max;i++){
+				_w_c[i] = new double[num_characters];
+				for(int j = 0;j < num_characters;j++){
+					_w_c[i][j] = sampler::normal(0, 1);
+				}
+			}
+			_w_t = new double*[_t_max + 1];
+			for(int i = 0;i <= _c_max;i++){
+				_w_t[i] = new double[num_types];
+				for(int j = 0;j < num_types;j++){
+					_w_t[i][j] = sampler::normal(0, 1);
+				}
+			}
+			_w_cont = new double[_coverage - 1];
+			_w_ch = new double[_coverage - 1];
+			for(int i = 0;i < _coverage - 1;i++){
+				_w_cont[i] = sampler::normal(0, 1);
+				_w_ch[i] = sampler::normal(0, 1);
+			}
 		}
 		void compile(){
 			std::pair<int, int*> pair;
 			for(auto word: _word_set){
 				int word_length = word.size();
 				int* features = extract_features(word);
+				pair.first = word_length;
+				pair.second = features;
+				_length_features_pair.push_back(pair);
 			}
+			init_weights();
 		}
 		int* extract_features(wstring &word){
 			int num_features = get_num_features();
@@ -50,7 +84,7 @@ namespace npycrf{
 			int char_id;
 			int t = word.size() - 1;
 			// 文字による素性
-			for(int i = 0;i < 2;i++){
+			for(int i = 0;i <= _c_max;i++){
 				if(t - i < 0){
 					break;
 				}
@@ -62,13 +96,13 @@ namespace npycrf{
 			}
 			// 文字種による素性
 			// Unicodeでは全280種
-			for(int i = 0;i < 5;i++){
+			for(int i = 0;i <= _t_max;i++){
 				if(t - i < 0){
 					break;
 				}
 				character = word[t - i];
 				unsigned int type = chartype::get_type(character);
-				features[i + 2] = type;
+				features[i + _c_max + 1] = type;
 			}
 			// t以前の同じ文字種の数
 			int cont = 0;
@@ -83,7 +117,7 @@ namespace npycrf{
 					cont += 1;
 				}
 			}
-			features[7] = cont;
+			features[_c_max + _t_max + 2] = cont;
 			// 文字種が変わった数
 			int ch = 0;
 			for(int i = 1;i < _coverage;i++){
@@ -97,7 +131,7 @@ namespace npycrf{
 					basetype = type;
 				}
 			}
-			features[8] = ch;
+			features[_c_max + _t_max + 3] = ch;
 			return features;
 		}
 		int get_character_id(wchar_t character){
@@ -109,10 +143,10 @@ namespace npycrf{
 		}
 		int get_num_features(){
 			int num = 0;
-			// character at time t−i (0 ≤ i ≤ 1)
-			num += 2;
-			// character type at time t−i (0 ≤ i ≤ 4)
-			num += 5;
+			// character at time t−i (0 ≤ i ≤ c_max)
+			num += _c_max + 1;
+			// character type at time t−i (0 ≤ i ≤ t_max)
+			num += _t_max + 1;
 			// # of the same character types before t
 			num += 1;
 			// # of times character types changed
