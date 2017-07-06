@@ -15,6 +15,9 @@ using namespace std;
 // http://chasen.org/~daiti-m/paper/acl2015pyhsmm.pdf
 
 namespace npycrf{
+	double sigmoid(double x){
+		return 1 / (1 + exp(-x));
+	}
 	class GLM{
 	private:
 		double _wr_bias;      // バイアス
@@ -73,14 +76,16 @@ namespace npycrf{
 			_wr_c = new double*[_c_max + 1];
 			for(int i = 0;i <= _c_max;i++){
 				_wr_c[i] = new double[num_characters];
-				for(int j = 0;j < num_characters;j++){
+				_wr_c[i][0] = 0;
+				for(int j = 1;j < num_characters;j++){
 					_wr_c[i][j] = sampler::normal(0, 1);
 				}
 			}
 			_wr_t = new double*[_t_max + 1];
 			for(int i = 0;i <= _t_max;i++){
 				_wr_t[i] = new double[num_types];
-				for(int j = 0;j < num_types;j++){
+				_wr_t[i][0] = 0;
+				for(int j = 1;j < num_types;j++){
 					_wr_t[i][j] = sampler::normal(0, 1);
 				}
 			}
@@ -95,14 +100,16 @@ namespace npycrf{
 			_wp_c = new double*[_c_max + 1];
 			for(int i = 0;i <= _c_max;i++){
 				_wp_c[i] = new double[num_characters];
-				for(int j = 0;j < num_characters;j++){
+				_wp_c[i][0] = 0;
+				for(int j = 1;j < num_characters;j++){
 					_wp_c[i][j] = sampler::normal(0, 1);
 				}
 			}
 			_wp_t = new double*[_t_max + 1];
 			for(int i = 0;i <= _t_max;i++){
 				_wp_t[i] = new double[num_types];
-				for(int j = 0;j < num_types;j++){
+				_wp_t[i][0] = 0;
+				for(int j = 1;j < num_types;j++){
 					_wp_t[i][j] = sampler::normal(0, 1);
 				}
 			}
@@ -220,6 +227,30 @@ namespace npycrf{
 				}
 			}
 		}
+		double compute_r(int* feature){
+			double u = _wr_bias;
+			for(int i = 0;i <= _c_max;i++){
+				u += _wr_c[i][feature[i]];
+			}
+			for(int i = 0;i <= _t_max;i++){
+				u += _wr_t[i][feature[i + _c_max + 1]];
+			}
+			u += _wr_cont[feature[_c_max + _t_max + 2]];	// cont
+			u += _wr_cont[feature[_c_max + _t_max + 3]];	// ch
+			return exp(u);
+		}
+		double compute_p(int* feature){
+			double u = _wp_bias;
+			for(int i = 0;i <= _c_max;i++){
+				u += _wp_c[i][feature[i]];
+			}
+			for(int i = 0;i <= _t_max;i++){
+				u += _wp_t[i][feature[i + _c_max + 1]];
+			}
+			u += _wp_cont[feature[_c_max + _t_max + 2]];	// cont
+			u += _wp_cont[feature[_c_max + _t_max + 3]];	// ch
+			return sigmoid(u);
+		}
 		void dump_words(){
 			cout << "word	feature" << endl;
 			int num_features = get_num_features();
@@ -229,7 +260,9 @@ namespace npycrf{
 				for(int i = 0;i < num_features;i++){
 					wcout << feature[i] << ", ";
 				}
-				wcout << endl;
+				double p = compute_p(feature);
+				double r = compute_r(feature);
+				wcout << p << "	" << r << "	" << endl;
 				delete[] feature;
 			}
 		}
