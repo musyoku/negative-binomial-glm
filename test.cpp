@@ -14,6 +14,6 @@ int main(int argc, char *argv[]){
 	PyTrainer* trainer = new PyTrainer(8, 1, 1);
 	trainer->add_textfile("../../dataset/japanese.txt");
 	trainer->compile();
-	trainer->_glm->dump_words();
+	trainer->dump_words();
 	delete trainer;
 }
