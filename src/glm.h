@@ -16,18 +16,24 @@ using namespace std;
 
 namespace npycrf{
 	class GLM{
-	public:
+	private:
+		double _wr_bias;      // バイアス
+		double** _wr_c;
+		double** _wr_t;
+		double* _wr_cont;
+		double* _wr_ch;
+		double _wp_bias;      // バイアス
+		double** _wp_c;
+		double** _wp_t;
+		double* _wp_cont;
+		double* _wp_ch;
 		int _coverage;
 		int _c_max;
 		int _t_max;
+		vector<std::pair<int, int*>> _length_features_pair;
+	public:
 		unordered_set<wstring> _word_set;
 		unordered_map<wchar_t, int> _char_ids;
-		vector<std::pair<int, int*>> _length_features_pair;
-		double _w_bias;      // バイアス
-		double** _w_c;
-		double** _w_t;
-		double* _w_cont;
-		double* _w_ch;
 		GLM(){ }
 		// t以前の何文字から素性ベクトルを作るか
 		// c_maxはc_iのiの範囲（0 ≤ i ≤ c_max）
@@ -38,29 +44,73 @@ namespace npycrf{
 			_c_max = c_max;
 			_t_max = t_max;
 		}
+		~GLM(){
+			for(auto pair: _length_features_pair){
+				delete[] pair.second;
+			}
+			for(int i = 0;i <= _c_max;i++){
+				delete[] _wr_c[i];
+				delete[] _wp_c[i];
+			}
+			for(int i = 0;i <= _t_max;i++){
+				delete[] _wr_t[i];
+				delete[] _wp_t[i];
+			}
+			delete[] _wr_c;
+			delete[] _wp_c;
+			delete[] _wr_t;
+			delete[] _wp_t;
+			delete[] _wr_cont;
+			delete[] _wr_ch;
+			delete[] _wp_cont;
+			delete[] _wp_ch;
+		}
 		void init_weights(){
 			int num_characters = _char_ids.size();
 			int num_types = 280;	// Unicode
-			_w_bias = sampler::normal(0, 1);
-			_w_c = new double*[_c_max + 1];
+			// r
+			_wr_bias = sampler::normal(0, 1);
+			_wr_c = new double*[_c_max + 1];
 			for(int i = 0;i <= _c_max;i++){
-				_w_c[i] = new double[num_characters];
+				_wr_c[i] = new double[num_characters];
 				for(int j = 0;j < num_characters;j++){
-					_w_c[i][j] = sampler::normal(0, 1);
+					_wr_c[i][j] = sampler::normal(0, 1);
 				}
 			}
-			_w_t = new double*[_t_max + 1];
-			for(int i = 0;i <= _c_max;i++){
-				_w_t[i] = new double[num_types];
+			_wr_t = new double*[_t_max + 1];
+			for(int i = 0;i <= _t_max;i++){
+				_wr_t[i] = new double[num_types];
 				for(int j = 0;j < num_types;j++){
-					_w_t[i][j] = sampler::normal(0, 1);
+					_wr_t[i][j] = sampler::normal(0, 1);
 				}
 			}
-			_w_cont = new double[_coverage - 1];
-			_w_ch = new double[_coverage - 1];
+			_wr_cont = new double[_coverage - 1];
+			_wr_ch = new double[_coverage - 1];
 			for(int i = 0;i < _coverage - 1;i++){
-				_w_cont[i] = sampler::normal(0, 1);
-				_w_ch[i] = sampler::normal(0, 1);
+				_wr_cont[i] = sampler::normal(0, 1);
+				_wr_ch[i] = sampler::normal(0, 1);
+			}
+			// p
+			_wp_bias = sampler::normal(0, 1);
+			_wp_c = new double*[_c_max + 1];
+			for(int i = 0;i <= _c_max;i++){
+				_wp_c[i] = new double[num_characters];
+				for(int j = 0;j < num_characters;j++){
+					_wp_c[i][j] = sampler::normal(0, 1);
+				}
+			}
+			_wp_t = new double*[_t_max + 1];
+			for(int i = 0;i <= _t_max;i++){
+				_wp_t[i] = new double[num_types];
+				for(int j = 0;j < num_types;j++){
+					_wp_t[i][j] = sampler::normal(0, 1);
+				}
+			}
+			_wp_cont = new double[_coverage - 1];
+			_wp_ch = new double[_coverage - 1];
+			for(int i = 0;i < _coverage - 1;i++){
+				_wp_cont[i] = sampler::normal(0, 1);
+				_wp_ch[i] = sampler::normal(0, 1);
 			}
 		}
 		void compile(){

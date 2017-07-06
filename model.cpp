@@ -36,7 +36,7 @@ public:
 		_glm = new GLM(coverage, c_max, t_max);
 	}
 	~PyTrainer(){
-
+		delete _glm;
 	}
 	void add_textfile(string filename){
 		wifstream ifs(filename.c_str());
@@ -54,8 +54,11 @@ public:
 			_glm->add_words(words);
 		}
 		// cout << _glm->get_num_features() << endl;
-		_glm->dump_characters();
-		_glm->dump_words();
+		// _glm->dump_characters();
+		// _glm->dump_words();
+	}
+	void compile(){
+		_glm->compile();
 	}
 	void save(string filename){
 
