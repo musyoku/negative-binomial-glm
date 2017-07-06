@@ -53,8 +53,9 @@ public:
 			split_word_by(sentence, L' ', words);
 			_glm->add_words(words);
 		}
-		cout << _glm->get_feature_vector_length() << endl;
-		_glm->dump_characters();
+		// cout << _glm->get_num_features() << endl;
+		// _glm->dump_characters();
+		// _glm->dump_words();
 	}
 	void save(string filename){
 
