@@ -9,8 +9,6 @@
 #include "ctype.h"
 #include "sampler.h"
 
-using namespace std;
-
 // Inducing Word and Part-of-Speech with Pitman-Yor Hidden Semi-Markov Models
 // http://chasen.org/~daiti-m/paper/acl2015pyhsmm.pdf
 

@@ -11,9 +11,11 @@ int main(int argc, char *argv[]){
 	wcout.imbue(ctype_default);
 	wcin.imbue(ctype_default);
 
-	PyTrainer* trainer = new PyTrainer(8, 1, 1);
-	trainer->add_textfile("../../dataset/japanese.txt");
-	trainer->compile();
-	trainer->dump_words();
-	delete trainer;
+	for(int i = 0;i < 10;i++){
+		PyTrainer* trainer = new PyTrainer(8, 1, 1);
+		trainer->add_textfile("../../dataset/japanese.txt");
+		trainer->compile();
+		// trainer->dump_words();
+		delete trainer;
+	}
 }

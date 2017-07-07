@@ -1,6 +1,9 @@
 #include <boost/python.hpp>
 #include <fstream>
+#include <vector>
+#include <cassert>
 #include "src/glm.h"
+using namespace std;
 using namespace boost;
 using namespace npycrf;
 
@@ -22,33 +25,97 @@ void split_word_by(const wstring &str, wchar_t delim, vector<wstring> &words){
 	}
 }
 
+class Indices{
+private:
+	vector<int> _indices;
+public:
+	int size(){
+		return _indices.size();
+	}
+    int operator[](int i) {
+    	assert(i < size());
+    	return _indices[i];
+    }
+    void add(int i){
+    	_indices.push_back(i);
+    }
+};
+
 class PyTrainer{
+private:
+	vector<std::pair<int, int*>> _length_features_pair;
+	bool _compiled;
+	// 重みの変更の影響を受ける素性ベクトルをリストアップ
+	Indices*** _indices_wr_c;
+	Indices*** _indices_wr_t;
+	Indices** _indices_wr_cont;
+	Indices** _indices_wr_ch;
+	Indices*** _indices_wp_c;
+	Indices*** _indices_wp_t;
+	Indices** _indices_wp_cont;
+	Indices** _indices_wp_ch;
 public:
 	GLM* _glm;
-	vector<std::pair<int, int*>> _length_features_pair;
 	unordered_set<wstring> _word_set;
 	unordered_map<wchar_t, int> _char_ids;
 	int _coverage;
 	int _c_max;
 	int _t_max;
+
 	PyTrainer(int coverage, int c_max, int t_max){
-		setlocale(LC_CTYPE, "ja_JP.UTF-8");
-		ios_base::sync_with_stdio(false);
-		locale default_loc("ja_JP.UTF-8");
-		locale::global(default_loc);
-		locale ctype_default(locale::classic(), default_loc, locale::ctype); //※
-		wcout.imbue(ctype_default);
-		wcin.imbue(ctype_default);
 		_glm = new GLM(coverage, c_max, t_max);
 		_coverage = coverage;
 		_c_max = c_max;
 		_t_max = t_max;
+		_compiled = false;
+		_indices_wr_c = NULL;
+		_indices_wr_t = NULL;
+		_indices_wr_cont = NULL;
+		_indices_wr_ch = NULL;
+		_indices_wp_c = NULL;
+		_indices_wp_t = NULL;
+		_indices_wp_cont = NULL;
+		_indices_wp_ch = NULL;
 	}
 	~PyTrainer(){
 		for(auto pair: _length_features_pair){
 			delete[] pair.second;
 		}
 		delete _glm;
+		if(_compiled){
+			int num_characters = _char_ids.size();
+			int num_types = 280;	// Unicode
+			for(int i = 0;i <= _c_max;i++){
+				for(int j = 0;j < num_characters;j++){
+					delete _indices_wr_c[i][j];
+					delete _indices_wp_c[i][j];
+				}
+				delete[] _indices_wr_c[i];
+				delete[] _indices_wp_c[i];
+			}
+			delete[] _indices_wr_c;
+			delete[] _indices_wp_c;
+			for(int i = 0;i <= _t_max;i++){
+				for(int j = 0;j < num_types;j++){
+					delete _indices_wr_t[i][j];
+					delete _indices_wp_t[i][j];
+				}
+				delete[] _indices_wr_t[i];
+				delete[] _indices_wp_t[i];
+			}
+			delete[] _indices_wr_t;
+			delete[] _indices_wp_t;
+			for(int i = 0;i < _coverage - 1;i++){
+				delete _indices_wr_cont[i];
+				delete _indices_wp_cont[i];
+				delete _indices_wr_ch[i];
+				delete _indices_wp_ch[i];
+			}
+			delete[] _indices_wr_cont;
+			delete[] _indices_wp_cont;
+			delete[] _indices_wr_ch;
+			delete[] _indices_wp_ch;
+		}
 	}
 	void add_textfile(string filename){
 		wifstream ifs(filename.c_str());
@@ -67,6 +134,38 @@ public:
 		}
 	}
 	void compile(){
+		int num_characters = _char_ids.size();
+		int num_types = 280;	// Unicode
+		_indices_wr_c = new Indices**[_c_max + 1];
+		_indices_wp_c = new Indices**[_c_max + 1];
+		for(int i = 0;i <= _c_max;i++){
+			_indices_wr_c[i] = new Indices*[num_characters];
+			_indices_wp_c[i] = new Indices*[num_characters];
+			for(int j = 0;j < num_characters;j++){
+				_indices_wr_c[i][j] = new Indices();
+				_indices_wp_c[i][j] = new Indices();
+			}
+		}
+		_indices_wr_t = new Indices**[_t_max + 1];
+		_indices_wp_t = new Indices**[_t_max + 1];
+		for(int i = 0;i <= _t_max;i++){
+			_indices_wr_t[i] = new Indices*[num_types];
+			_indices_wp_t[i] = new Indices*[num_types];
+			for(int j = 0;j < num_types;j++){
+				_indices_wr_t[i][j] = new Indices();
+				_indices_wp_t[i][j] = new Indices();
+			}
+		}
+		_indices_wr_cont = new Indices*[_coverage - 1];
+		_indices_wp_cont = new Indices*[_coverage - 1];
+		_indices_wr_ch = new Indices*[_coverage - 1];
+		_indices_wp_ch = new Indices*[_coverage - 1];
+		for(int i = 0;i < _coverage - 1;i++){
+			_indices_wr_cont[i] = new Indices();
+			_indices_wp_cont[i] = new Indices();
+			_indices_wr_ch[i] = new Indices();
+			_indices_wp_ch[i] = new Indices();
+		}
 		std::pair<int, int*> pair;
 		for(auto word: _word_set){
 			int word_length = word.size();
@@ -74,8 +173,10 @@ public:
 			pair.first = word_length;
 			pair.second = features;
 			_length_features_pair.push_back(pair);
+			// 重みの変更の影響を受ける素性ベクトルをリストアップ
 		}
 		_glm->init_weights(_char_ids.size());
+		_compiled = true;
 	}
 	void save(string filename){
 

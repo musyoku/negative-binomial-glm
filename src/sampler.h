@@ -1,15 +1,14 @@
 #pragma once
 #include <random>
 #include <chrono>
-using namespace std;
 
 namespace npycrf{
 	namespace sampler{
-		int seed = chrono::system_clock::now().time_since_epoch().count();
+		int seed = std::chrono::system_clock::now().time_since_epoch().count();
 		// int seed = 1;
-		mt19937 mt(seed);
+		std::mt19937 mt(seed);
 		double gamma(double a, double b){
-			gamma_distribution<double> distribution(a, 1.0 / b);
+			std::gamma_distribution<double> distribution(a, 1.0 / b);
 			return distribution(mt);
 		}
 		double beta(double a, double b){
@@ -18,7 +17,7 @@ namespace npycrf{
 			return ga / (ga + gb);
 		}
 		double bernoulli(double p){
-			uniform_real_distribution<double> rand(0, 1);
+			std::uniform_real_distribution<double> rand(0, 1);
 			double r = rand(mt);
 			if(r > p){
 				return 0;
@@ -26,11 +25,11 @@ namespace npycrf{
 			return 1;
 		}
 		double uniform(double min = 0, double max = 0){
-			uniform_real_distribution<double> rand(min, max);
+			std::uniform_real_distribution<double> rand(min, max);
 			return rand(mt);
 		}
 		double normal(double mean, double stddev){
-			normal_distribution<double> rand(mean, stddev);
+			std::normal_distribution<double> rand(mean, stddev);
 			return rand(mt);
 		}
 	} // namespace sampler
