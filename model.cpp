@@ -232,7 +232,6 @@ public:
 		// for(int i = 0;i < _coverage;i++){
 		// 	cout << "	i=" << i << ", size=" << _indices_wp_ch[i]->size() << endl;
 		// }
-
 		_glm->init_weights(_char_ids.size());
 		_compiled = true;
 	}
@@ -347,6 +346,14 @@ public:
 		}
 		features[_c_max + _t_max + 3] = ch;
 		return features;
+	}
+	void perform_mcmc(){
+		int num_characters = _char_ids.size();
+		int num_types = CTYPE_TOTAL_TYPE;	// Unicode
+		for(int i = 0;i <= _c_max;i++){
+			int random_index = sampler::uniform_int(0, num_characters);
+			cout << random_index << endl;
+		}
 	}
 };
 

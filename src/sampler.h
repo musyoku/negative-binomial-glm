@@ -32,5 +32,9 @@ namespace npycrf{
 			std::normal_distribution<double> rand(mean, stddev);
 			return rand(mt);
 		}
+		int uniform_int(int min = 0, int max = 0){
+			std::uniform_int_distribution<> rand(min, max);
+			return rand(mt);
+		}
 	} // namespace sampler
 } // namespace npycrf
