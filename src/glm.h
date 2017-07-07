@@ -61,7 +61,7 @@ namespace npycrf{
 			delete[] _wp_ch;
 		}
 		void init_weights(int num_characters){
-			int num_types = 280;	// Unicode
+			int num_types = CTYPE_TOTAL_TYPE;	// Unicode
 			// r
 			_wr_bias = sampler::normal(0, 1);
 			_wr_c = new double*[_c_max + 1];

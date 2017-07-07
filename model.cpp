@@ -84,7 +84,7 @@ public:
 		delete _glm;
 		if(_compiled){
 			int num_characters = _char_ids.size();
-			int num_types = 280;	// Unicode
+			int num_types = CTYPE_TOTAL_TYPE;	// Unicode
 			for(int i = 0;i <= _c_max;i++){
 				for(int j = 0;j < num_characters;j++){
 					delete _indices_wr_c[i][j];
@@ -105,7 +105,7 @@ public:
 			}
 			delete[] _indices_wr_t;
 			delete[] _indices_wp_t;
-			for(int i = 0;i < _coverage - 1;i++){
+			for(int i = 0;i < _coverage;i++){
 				delete _indices_wr_cont[i];
 				delete _indices_wp_cont[i];
 				delete _indices_wr_ch[i];
@@ -135,7 +135,7 @@ public:
 	}
 	void compile(){
 		int num_characters = _char_ids.size();
-		int num_types = 280;	// Unicode
+		int num_types = CTYPE_TOTAL_TYPE;	// Unicode
 		_indices_wr_c = new Indices**[_c_max + 1];
 		_indices_wp_c = new Indices**[_c_max + 1];
 		for(int i = 0;i <= _c_max;i++){
@@ -156,11 +156,11 @@ public:
 				_indices_wp_t[i][j] = new Indices();
 			}
 		}
-		_indices_wr_cont = new Indices*[_coverage - 1];
-		_indices_wp_cont = new Indices*[_coverage - 1];
-		_indices_wr_ch = new Indices*[_coverage - 1];
-		_indices_wp_ch = new Indices*[_coverage - 1];
-		for(int i = 0;i < _coverage - 1;i++){
+		_indices_wr_cont = new Indices*[_coverage];
+		_indices_wp_cont = new Indices*[_coverage];
+		_indices_wr_ch = new Indices*[_coverage];
+		_indices_wp_ch = new Indices*[_coverage];
+		for(int i = 0;i < _coverage;i++){
 			_indices_wr_cont[i] = new Indices();
 			_indices_wp_cont[i] = new Indices();
 			_indices_wr_ch[i] = new Indices();
@@ -173,8 +173,66 @@ public:
 			pair.first = word_length;
 			pair.second = features;
 			_length_features_pair.push_back(pair);
+			int feature_index = _length_features_pair.size() - 1;
 			// 重みの変更の影響を受ける素性ベクトルをリストアップ
+			// wcout << "word: " << word << ", f: " << feature_index << ", feature: ";
+			// int num_features = _glm->get_num_features();
+			// for(int i = 0;i < num_features;i++){
+			// 	wcout << features[i] << ", ";
+			// }
+			// wcout << endl;
+
+			for(int i = 0;i <= _c_max;i++){
+				int cid = features[i] - 1;	// 文字IDは1スタート
+				if(cid == -1){
+					continue;	// 訓練データに無い、または単語の文字数がc_max未満
+				}
+				assert(cid < num_characters);
+				// cout << "cid: " << cid << endl;
+				_indices_wp_c[i][cid]->add(feature_index);
+				_indices_wr_c[i][cid]->add(feature_index);
+			}
+			for(int i = 0;i <= _t_max;i++){
+				int type = features[i + _c_max + 1];
+				assert(type < CTYPE_TOTAL_TYPE);
+				// cout << "type: " << type << endl;
+				_indices_wp_t[i][type]->add(feature_index);
+				_indices_wr_t[i][type]->add(feature_index);
+			}
+			int cont = features[_c_max + _t_max + 2];
+			// cout << "cont: " << cont << endl;
+			_indices_wp_cont[cont]->add(feature_index);
+			_indices_wr_cont[cont]->add(feature_index);
+			int ch = features[_c_max + _t_max + 3];
+			// cout << "ch: " << ch << endl;
+			_indices_wp_ch[ch]->add(feature_index);
+			_indices_wr_ch[ch]->add(feature_index);
+
 		}
+
+		// cout << "character:" << endl;
+		// for(int i = 0;i <= _c_max;i++){
+		// 	cout << "	i=" << i << endl;
+		// 	for(int j = 0;j < num_characters;j++){
+		// 		cout << "		j=" << j << ", size=" << _indices_wp_c[i][j]->size() << endl;
+		// 	}
+		// }
+		// cout << "type:" << endl;
+		// for(int i = 0;i <= _t_max;i++){
+		// 	cout << "	i=" << i << endl;
+		// 	for(int j = 0;j < num_types;j++){
+		// 		cout << "		j=" << j << ", size=" << _indices_wp_t[i][j]->size() << endl;
+		// 	}
+		// }
+		// cout << "cont:" << endl;
+		// for(int i = 0;i < _coverage;i++){
+		// 	cout << "	i=" << i << ", size=" << _indices_wp_cont[i]->size() << endl;
+		// }
+		// cout << "ch:" << endl;
+		// for(int i = 0;i < _coverage;i++){
+		// 	cout << "	i=" << i << ", size=" << _indices_wp_ch[i]->size() << endl;
+		// }
+
 		_glm->init_weights(_char_ids.size());
 		_compiled = true;
 	}

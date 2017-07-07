@@ -281,6 +281,8 @@
 #define CTYPE_SUPPLEMENTARY_PRIVATE_USE_AREA_A 279
 #define CTYPE_SUPPLEMENTARY_PRIVATE_USE_AREA_B 280
 
+#define CTYPE_TOTAL_TYPE 280
+
 namespace chartype {
     unsigned int get_type(wchar_t c){
         if(0x0000 <= c && c <= 0x007F){
