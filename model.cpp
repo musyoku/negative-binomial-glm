@@ -26,9 +26,8 @@ void split_word_by(const wstring &str, wchar_t delim, vector<wstring> &words){
 }
 
 class Indices{
-private:
-	vector<int> _indices;
 public:
+	vector<int> _indices;
 	int size(){
 		return _indices.size();
 	}
@@ -46,14 +45,10 @@ private:
 	vector<std::pair<int, int*>> _length_features_pair;
 	bool _compiled;
 	// 重みの変更の影響を受ける素性ベクトルをリストアップ
-	Indices*** _indices_wr_c;
-	Indices*** _indices_wr_t;
-	Indices** _indices_wr_cont;
-	Indices** _indices_wr_ch;
-	Indices*** _indices_wp_c;
-	Indices*** _indices_wp_t;
-	Indices** _indices_wp_cont;
-	Indices** _indices_wp_ch;
+	Indices*** _indices_wx_c;
+	Indices*** _indices_wx_t;
+	Indices** _indices_wx_cont;
+	Indices** _indices_wx_ch;
 public:
 	GLM* _glm;
 	unordered_set<wstring> _word_set;
@@ -61,21 +56,19 @@ public:
 	int _coverage;
 	int _c_max;
 	int _t_max;
+	double _randwalk_sigma;
 
-	PyTrainer(int coverage, int c_max, int t_max){
+	PyTrainer(int coverage, int c_max, int t_max, double randwalk_sigma){
 		_glm = new GLM(coverage, c_max, t_max);
 		_coverage = coverage;
 		_c_max = c_max;
 		_t_max = t_max;
+		_randwalk_sigma = randwalk_sigma;
 		_compiled = false;
-		_indices_wr_c = NULL;
-		_indices_wr_t = NULL;
-		_indices_wr_cont = NULL;
-		_indices_wr_ch = NULL;
-		_indices_wp_c = NULL;
-		_indices_wp_t = NULL;
-		_indices_wp_cont = NULL;
-		_indices_wp_ch = NULL;
+		_indices_wx_c = NULL;
+		_indices_wx_t = NULL;
+		_indices_wx_cont = NULL;
+		_indices_wx_ch = NULL;
 	}
 	~PyTrainer(){
 		for(auto pair: _length_features_pair){
@@ -87,34 +80,24 @@ public:
 			int num_types = CTYPE_TOTAL_TYPE;	// Unicode
 			for(int i = 0;i <= _c_max;i++){
 				for(int j = 0;j < num_characters;j++){
-					delete _indices_wr_c[i][j];
-					delete _indices_wp_c[i][j];
+					delete _indices_wx_c[i][j];
 				}
-				delete[] _indices_wr_c[i];
-				delete[] _indices_wp_c[i];
+				delete[] _indices_wx_c[i];
 			}
-			delete[] _indices_wr_c;
-			delete[] _indices_wp_c;
+			delete[] _indices_wx_c;
 			for(int i = 0;i <= _t_max;i++){
 				for(int j = 0;j < num_types;j++){
-					delete _indices_wr_t[i][j];
-					delete _indices_wp_t[i][j];
+					delete _indices_wx_t[i][j];
 				}
-				delete[] _indices_wr_t[i];
-				delete[] _indices_wp_t[i];
+				delete[] _indices_wx_t[i];
 			}
-			delete[] _indices_wr_t;
-			delete[] _indices_wp_t;
+			delete[] _indices_wx_t;
 			for(int i = 0;i < _coverage;i++){
-				delete _indices_wr_cont[i];
-				delete _indices_wp_cont[i];
-				delete _indices_wr_ch[i];
-				delete _indices_wp_ch[i];
+				delete _indices_wx_cont[i];
+				delete _indices_wx_ch[i];
 			}
-			delete[] _indices_wr_cont;
-			delete[] _indices_wp_cont;
-			delete[] _indices_wr_ch;
-			delete[] _indices_wp_ch;
+			delete[] _indices_wx_cont;
+			delete[] _indices_wx_ch;
 		}
 	}
 	void add_textfile(string filename){
@@ -136,35 +119,25 @@ public:
 	void compile(){
 		int num_characters = _char_ids.size();
 		int num_types = CTYPE_TOTAL_TYPE;	// Unicode
-		_indices_wr_c = new Indices**[_c_max + 1];
-		_indices_wp_c = new Indices**[_c_max + 1];
+		_indices_wx_c = new Indices**[_c_max + 1];
 		for(int i = 0;i <= _c_max;i++){
-			_indices_wr_c[i] = new Indices*[num_characters];
-			_indices_wp_c[i] = new Indices*[num_characters];
+			_indices_wx_c[i] = new Indices*[num_characters];
 			for(int j = 0;j < num_characters;j++){
-				_indices_wr_c[i][j] = new Indices();
-				_indices_wp_c[i][j] = new Indices();
+				_indices_wx_c[i][j] = new Indices();
 			}
 		}
-		_indices_wr_t = new Indices**[_t_max + 1];
-		_indices_wp_t = new Indices**[_t_max + 1];
+		_indices_wx_t = new Indices**[_t_max + 1];
 		for(int i = 0;i <= _t_max;i++){
-			_indices_wr_t[i] = new Indices*[num_types];
-			_indices_wp_t[i] = new Indices*[num_types];
+			_indices_wx_t[i] = new Indices*[num_types];
 			for(int j = 0;j < num_types;j++){
-				_indices_wr_t[i][j] = new Indices();
-				_indices_wp_t[i][j] = new Indices();
+				_indices_wx_t[i][j] = new Indices();
 			}
 		}
-		_indices_wr_cont = new Indices*[_coverage];
-		_indices_wp_cont = new Indices*[_coverage];
-		_indices_wr_ch = new Indices*[_coverage];
-		_indices_wp_ch = new Indices*[_coverage];
+		_indices_wx_cont = new Indices*[_coverage];
+		_indices_wx_ch = new Indices*[_coverage];
 		for(int i = 0;i < _coverage;i++){
-			_indices_wr_cont[i] = new Indices();
-			_indices_wp_cont[i] = new Indices();
-			_indices_wr_ch[i] = new Indices();
-			_indices_wp_ch[i] = new Indices();
+			_indices_wx_cont[i] = new Indices();
+			_indices_wx_ch[i] = new Indices();
 		}
 		std::pair<int, int*> pair;
 		for(auto word: _word_set){
@@ -189,24 +162,20 @@ public:
 				}
 				assert(cid < num_characters);
 				// cout << "cid: " << cid << endl;
-				_indices_wp_c[i][cid]->add(feature_index);
-				_indices_wr_c[i][cid]->add(feature_index);
+				_indices_wx_c[i][cid]->add(feature_index);
 			}
 			for(int i = 0;i <= _t_max;i++){
 				int type = features[i + _c_max + 1];
 				assert(type < CTYPE_TOTAL_TYPE);
 				// cout << "type: " << type << endl;
-				_indices_wp_t[i][type]->add(feature_index);
-				_indices_wr_t[i][type]->add(feature_index);
+				_indices_wx_t[i][type]->add(feature_index);
 			}
 			int cont = features[_c_max + _t_max + 2];
 			// cout << "cont: " << cont << endl;
-			_indices_wp_cont[cont]->add(feature_index);
-			_indices_wr_cont[cont]->add(feature_index);
+			_indices_wx_cont[cont]->add(feature_index);
 			int ch = features[_c_max + _t_max + 3];
 			// cout << "ch: " << ch << endl;
-			_indices_wp_ch[ch]->add(feature_index);
-			_indices_wr_ch[ch]->add(feature_index);
+			_indices_wx_ch[ch]->add(feature_index);
 
 		}
 
@@ -214,23 +183,23 @@ public:
 		// for(int i = 0;i <= _c_max;i++){
 		// 	cout << "	i=" << i << endl;
 		// 	for(int j = 0;j < num_characters;j++){
-		// 		cout << "		j=" << j << ", size=" << _indices_wp_c[i][j]->size() << endl;
+		// 		cout << "		j=" << j << ", size=" << _indices_wx_c[i][j]->size() << endl;
 		// 	}
 		// }
 		// cout << "type:" << endl;
 		// for(int i = 0;i <= _t_max;i++){
 		// 	cout << "	i=" << i << endl;
 		// 	for(int j = 0;j < num_types;j++){
-		// 		cout << "		j=" << j << ", size=" << _indices_wp_t[i][j]->size() << endl;
+		// 		cout << "		j=" << j << ", size=" << _indices_wx_t[i][j]->size() << endl;
 		// 	}
 		// }
 		// cout << "cont:" << endl;
 		// for(int i = 0;i < _coverage;i++){
-		// 	cout << "	i=" << i << ", size=" << _indices_wp_cont[i]->size() << endl;
+		// 	cout << "	i=" << i << ", size=" << _indices_wx_cont[i]->size() << endl;
 		// }
 		// cout << "ch:" << endl;
 		// for(int i = 0;i < _coverage;i++){
-		// 	cout << "	i=" << i << ", size=" << _indices_wp_ch[i]->size() << endl;
+		// 	cout << "	i=" << i << ", size=" << _indices_wx_ch[i]->size() << endl;
 		// }
 		_glm->init_weights(_char_ids.size());
 		_compiled = true;
@@ -347,12 +316,35 @@ public:
 		features[_c_max + _t_max + 3] = ch;
 		return features;
 	}
+	double compute_joint_log_likelihood(vector<int> &indices){
+		double ll = 0;
+		for(int i: indices){
+			std::pair<int, int*> &pair = _length_features_pair[i];
+			int word_length = pair.first;
+			int* features = pair.second;
+			cout << features[0] << endl;
+			double r = _glm->compute_r(features);
+			double p = _glm->compute_p(features);
+			ll += _glm->compute_nb_log_likelihood(word_length, r, p);
+		}
+		return ll;
+	}
 	void perform_mcmc(){
 		int num_characters = _char_ids.size();
 		int num_types = CTYPE_TOTAL_TYPE;	// Unicode
 		for(int i = 0;i <= _c_max;i++){
-			int random_index = sampler::uniform_int(0, num_characters);
-			cout << random_index << endl;
+			int cid = sampler::uniform_int(1, num_characters + 1);	// 文字IDは1スタート
+			Indices* indices = _indices_wx_c[i][cid - 1];			// 配列は0から
+			if(indices->size() == 0){
+				continue;
+			}
+			cout << "#indices: " << indices->size() << endl;
+			double original_weight = _glm->_wp_c[i][cid];
+			double new_weight = original_weight + sampler::normal(0, _randwalk_sigma);
+			double ll_before = compute_joint_log_likelihood(indices->_indices);
+			_glm->_wp_c[i][cid] = new_weight;
+			double ll_after = compute_joint_log_likelihood(indices->_indices);
+			cout << "before: " << ll_before << ", after: " << ll_after << endl;
 		}
 	}
 };
@@ -372,7 +364,7 @@ public:
 };
 
 BOOST_PYTHON_MODULE(model){
-	python::class_<PyTrainer>("trainer", python::init<int, int, int>())
+	python::class_<PyTrainer>("trainer", python::init<int, int, int, double>())
 	.def("add_textfile", &PyTrainer::add_textfile)
 	.def("save", &PyTrainer::save);
 

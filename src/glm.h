@@ -16,8 +16,14 @@ namespace npycrf{
 	double sigmoid(double x){
 		return 1 / (1 + exp(-x));
 	}
+	unsigned int factorial(unsigned int n) {
+	    if (n == 0){
+	       return 1;
+	    }
+	    return n * factorial(n - 1);
+	}
 	class GLM{
-	private:
+	public:
 		double _wr_bias;      // バイアス
 		double** _wr_c;
 		double** _wr_t;
@@ -31,7 +37,6 @@ namespace npycrf{
 		int _coverage;
 		int _c_max;
 		int _t_max;
-	public:
 		GLM(){ }
 		// t以前の何文字から素性ベクトルを作るか
 		// c_maxはc_iのiの範囲（0 ≤ i ≤ c_max）
@@ -66,9 +71,9 @@ namespace npycrf{
 			_wr_bias = sampler::normal(0, 1);
 			_wr_c = new double*[_c_max + 1];
 			for(int i = 0;i <= _c_max;i++){
-				_wr_c[i] = new double[num_characters];
+				_wr_c[i] = new double[num_characters + 1];
 				_wr_c[i][0] = 0;
-				for(int j = 1;j < num_characters;j++){
+				for(int j = 1;j < num_characters + 1;j++){
 					_wr_c[i][j] = sampler::normal(0, 1);
 				}
 			}
@@ -90,9 +95,9 @@ namespace npycrf{
 			_wp_bias = sampler::normal(0, 1);
 			_wp_c = new double*[_c_max + 1];
 			for(int i = 0;i <= _c_max;i++){
-				_wp_c[i] = new double[num_characters];
+				_wp_c[i] = new double[num_characters + 1];
 				_wp_c[i][0] = 0;
-				for(int j = 1;j < num_characters;j++){
+				for(int j = 1;j < num_characters + 1;j++){
 					_wp_c[i][j] = sampler::normal(0, 1);
 				}
 			}
@@ -122,6 +127,14 @@ namespace npycrf{
 			// # of times character types changed
 			num += 1;
 			return num;
+		}
+		double compute_nb_log_likelihood(double l, double r, double p){
+			double likelihood = 0;
+			likelihood += lgamma(r + l);
+			likelihood -= lgamma(r) + lgamma(l + 1);
+			likelihood += l * log(p);
+			likelihood += r * log(1 - p);
+			return likelihood;
 		}
 		double compute_r(int* feature){
 			double u = _wr_bias;
