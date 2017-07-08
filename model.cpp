@@ -204,9 +204,6 @@ public:
 		_glm->init_weights(_char_ids.size());
 		_compiled = true;
 	}
-	void save(string filename){
-
-	}
 	void add_words(vector<wstring> &words){
 		for(auto word: words){
 			auto itr = _word_set.find(word);
@@ -256,7 +253,7 @@ public:
 		}
 		return itr->second;
 	}
-	int* extract_features(wstring &word){
+	int* extract_features(const wstring &word){
 		int num_features = _glm->get_num_features();
 		int* features = new int[num_features];
 		for(int i = 0;i < num_features;i++){
@@ -316,7 +313,7 @@ public:
 		features[_c_max + _t_max + 3] = ch;
 		return features;
 	}
-	double compute_joint_log_likelihood_given_indices(vector<int> &indices){
+	double compute_joint_log_likelihood_given_indices(const vector<int> &indices){
 		double ll = 0;
 		for(int i: indices){
 			std::pair<int, int*> &pair = _length_features_pair[i];
@@ -522,6 +519,12 @@ public:
 			_glm->_wr_ch[ch] = old_weight;	// 棄却
 		}
 	}
+	void save(string filename){
+		_glm->save(filename);
+	}
+	void load(string filename){
+		_glm->load(filename);
+	}
 };
 
 class PyGLM{
@@ -541,6 +544,9 @@ public:
 BOOST_PYTHON_MODULE(model){
 	python::class_<PyTrainer>("trainer", python::init<int, int, int, double>())
 	.def("add_textfile", &PyTrainer::add_textfile)
+	.def("compile", &PyTrainer::compile)
+	.def("perform_mcmc", &PyTrainer::perform_mcmc)
+	.def("compute_joint_log_likelihood", &PyTrainer::compute_joint_log_likelihood)
 	.def("save", &PyTrainer::save);
 
 	python::class_<PyGLM>("glm", python::init<std::string>())

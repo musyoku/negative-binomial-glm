@@ -19,8 +19,10 @@ int main(int argc, char *argv[]){
 	while(true){
 		trainer->perform_mcmc();
 		if(itr % 1000 == 0){
-			double ll = trainer->compute_joint_log_likelihood();
-			cout << "itr: " << itr << "- log likelihood: " << ll << endl;
+			cout << "itr: " << itr << " - log likelihood: " << trainer->compute_joint_log_likelihood() << endl;
+		}
+		if(itr % 10000 == 0){
+			trainer->save("out/model2.glm");
 		}
 		itr++;
 	}

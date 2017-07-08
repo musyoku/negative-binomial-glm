@@ -5,7 +5,7 @@ import argparse, os
 import model
 
 def main(args):
-	trainer = model.trainer(args.coverage, args.cmax, args.tmax)
+	trainer = model.trainer(args.coverage, args.cmax, args.tmax, args.sigma)
 
 	# テキストファイルの追加
 	if args.input_dir is not None:
@@ -22,12 +22,23 @@ def main(args):
 	else:
 		raise Exception()
 
+	trainer.compile()
+	itr = 1
+	while True:
+		trainer.perform_mcmc()
+		if itr % 1000 == 0:
+			print("itr: {} - log likelihood: {}".format(itr, trainer.compute_joint_log_likelihood()))
+		if itr % 10000 == 0:
+			trainer.save(args.model_filename)
+		itr += 1
+
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-i", "--input-dir", type=str, default=None, help="訓練用のテキストファイルが入っているディレクトリ.")
 	parser.add_argument("-f", "--input-filename", type=str, default=None, help="訓練用のテキストファイル.")
-	parser.add_argument("-m", "--model-filename", type=str, default="out", help="モデルを保存するファイルへのパス.")
+	parser.add_argument("-m", "--model-filename", type=str, default="out/model.glm", help="モデルを保存するファイルへのパス.")
 	parser.add_argument("-cover", "--coverage", type=int, default=8, help="後ろの何文字から素性ベクトルを作るか.")
 	parser.add_argument("-cmax", "--cmax", type=int, default=1, help="後ろの何文字のIDを素性にするか.")
 	parser.add_argument("-tmax", "--tmax", type=int, default=4, help="後ろの何文字の文字種を素性にするか.")
+	parser.add_argument("-sigma", "--sigma", type=float, default=0.02, help="ランダムウォーク幅.")
 	main(parser.parse_args())
