@@ -1,14 +1,14 @@
 CC = g++
 INCLUDE = -I`python -c 'from distutils.sysconfig import *; print get_python_inc()'`
 BOOST = -lboost_python -lpython2.7 -lboost_serialization
-CFLAGS = -std=c++11 -L/usr/local/lib -O0 -g
+CFLAGS = -std=c++11 -L/usr/local/lib -O3
 CFLAGS_SO = -shared -fPIC -std=c++11 -L/usr/local/lib -O3 
 
-install: ## NPYLMのビルド
+python: ## Python用にビルド
 	$(CC) model.cpp -o model.so $(INCLUDE) $(CFLAGS_SO) $(BOOST)
 
-test: ## LLDB用
-	$(CC) test.cpp $(CFLAGS) $(INCLUDE) $(BOOST)
+cpp: ## C++で学習する場合
+	$(CC) train.cpp $(CFLAGS) $(INCLUDE) $(BOOST)
 
 .PHONY: help
 help:

@@ -15,10 +15,14 @@ int main(int argc, char *argv[]){
 	trainer->add_textfile("../../dataset/japanese.txt");
 	trainer->compile();
 	// trainer->dump_words();
-	for(int i = 0;i < 1000;i++){
+	int itr = 1;
+	while(true){
 		trainer->perform_mcmc();
-		double ll = trainer->compute_joint_log_likelihood();
-		cout << ll << endl;
+		if(itr % 1000 == 0){
+			double ll = trainer->compute_joint_log_likelihood();
+			cout << "itr: " << itr << "- log likelihood: " << ll << endl;
+		}
+		itr++;
 	}
 	delete trainer;
 }
