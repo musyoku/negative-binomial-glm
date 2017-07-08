@@ -1,4 +1,10 @@
 #include <boost/python.hpp>
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/base_object.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/serialization/unordered_map.hpp>
+#include <locale>
 #include <fstream>
 #include <vector>
 #include <cassert>
@@ -12,7 +18,7 @@ void split_word_by(const wstring &str, wchar_t delim, vector<wstring> &words){
 	wstring item;
 	for(wchar_t ch: str){
 		if (ch == delim){
-			if (!item.empty()){
+			if (!item.empty() && item.length() > 0){
 				words.push_back(item);
 			}
 			item.clear();
@@ -40,7 +46,139 @@ public:
     }
 };
 
-class PyTrainer{
+class PyGLM{
+public:
+	GLM* _glm;
+	unordered_map<wchar_t, int> _char_ids;
+	PyGLM(){
+		setlocale(LC_CTYPE, "");
+		ios_base::sync_with_stdio(false);
+		locale default_loc("");
+		locale::global(default_loc);
+		locale ctype_default(locale::classic(), default_loc, locale::ctype);
+		wcout.imbue(ctype_default);
+		wcin.imbue(ctype_default);
+		_glm = NULL;
+	}
+	PyGLM(string filename){
+		setlocale(LC_CTYPE, "");
+		ios_base::sync_with_stdio(false);
+		locale default_loc("");
+		locale::global(default_loc);
+		locale ctype_default(locale::classic(), default_loc, locale::ctype);
+		wcout.imbue(ctype_default);
+		wcin.imbue(ctype_default);
+		_glm = NULL;
+		load(filename);
+	}
+	~PyGLM(){
+		delete _glm;
+	}
+	bool load(string filename){
+		if(_glm == NULL){
+			_glm = new GLM();
+		}
+		std::ifstream ifs(filename);
+		if(ifs.good()){
+			_glm = new GLM();
+			boost::archive::binary_iarchive iarchive(ifs);
+			iarchive >> *_glm;
+			iarchive >> _char_ids;
+			return true;
+		}
+		return false;
+	}
+	int get_character_id(wchar_t character){
+		auto itr = _char_ids.find(character);
+		if(itr == _char_ids.end()){
+			return -1;
+		}
+		return itr->second;
+	}
+	int get_word_length_exceeds_threshold(double r, double p, double threshold, int max_word_length){
+		int l = 1;
+		for(;l <= max_word_length;l++){
+			double cum = _glm->compute_cumulative_probability(l, r, p);
+			if(cum >= threshold){
+				break;
+			}
+		}
+		return l;
+	}
+	int predict_word_length(wstring word, double threshold, int max_word_length){
+		int* feature = extract_features(word);
+		double p = _glm->compute_p(feature);
+		double r = _glm->compute_r(feature);
+		int length = get_word_length_exceeds_threshold(r, p, threshold, max_word_length);
+		delete[] feature;
+		return length;
+	}
+	int* extract_features(const wstring &word){
+		int c_max = _glm->_c_max;
+		int t_max = _glm->_t_max;
+		int coverage = _glm->_coverage;
+		int num_features = _glm->get_num_features();
+		int* features = new int[num_features];
+		for(int i = 0;i < num_features;i++){
+			features[i] = 0;
+		}
+		wchar_t character;
+		int char_id;
+		int t = word.size() - 1;
+		// 文字による素性
+		for(int i = 0;i <= c_max;i++){
+			if(t - i < 0){
+				break;
+			}
+			character = word[t - i];
+			char_id = get_character_id(character);
+			if(char_id > 0){    // 訓練データにないものは無視
+				features[i] = char_id;
+			}
+		}
+		// 文字種による素性
+		// Unicodeでは全280種
+		for(int i = 0;i <= t_max;i++){
+			if(t - i < 0){
+				break;
+			}
+			character = word[t - i];
+			unsigned int type = chartype::get_type(character);
+			features[i + c_max + 1] = type;
+		}
+		// t以前の同じ文字種の数
+		int cont = 0;
+		unsigned int basetype = chartype::get_type(word[t]);
+		for(int i = 1;i < coverage;i++){
+			if(t - i < 0){
+				break;
+			}
+			character = word[t - i];
+			unsigned int type = chartype::get_type(character);
+			if(type == basetype){
+				cont += 1;
+			}
+		}
+		features[c_max + t_max + 2] = cont;
+		// 文字種が変わった数
+		int ch = 0;
+		for(int i = 1;i < coverage;i++){
+			if(t - i < 0){
+				break;
+			}
+			character = word[t - i];
+			unsigned int type = chartype::get_type(character);
+			if(type != basetype){
+				ch += 1;
+				basetype = type;
+			}
+		}
+		features[c_max + t_max + 3] = ch;
+		return features;
+	}
+};
+
+class PyTrainer: PyGLM{
 private:
 	vector<std::pair<int, int*>> _length_features_pair;
 	bool _compiled;
@@ -50,9 +188,7 @@ private:
 	Indices** _indices_wx_cont;
 	Indices** _indices_wx_ch;
 public:
-	GLM* _glm;
 	unordered_set<wstring> _word_set;
-	unordered_map<wchar_t, int> _char_ids;
 	int _coverage;
 	int _c_max;
 	int _t_max;
@@ -130,7 +266,9 @@ public:
 		}
 	}
 	void compile(){
+		assert(_compiled == false);
 		int num_characters = _char_ids.size();
+		assert(num_characters > 0);
 		int num_types = CTYPE_TOTAL_TYPE;	// Unicode
 		_indices_wx_c = new Indices**[_c_max + 1];
 		for(int i = 0;i <= _c_max;i++){
@@ -258,73 +396,6 @@ public:
 			std::wstring name = cv.from_bytes(chartype::get_name(type));
 			wcout << character << "	" << elem.second << "	" << name << endl;
 		}
-	}
-	int get_character_id(wchar_t character){
-		auto itr = _char_ids.find(character);
-		if(itr == _char_ids.end()){
-			return -1;
-		}
-		return itr->second;
-	}
-	int* extract_features(const wstring &word){
-		int num_features = _glm->get_num_features();
-		int* features = new int[num_features];
-		for(int i = 0;i < num_features;i++){
-			features[i] = 0;
-		}
-		wchar_t character;
-		int char_id;
-		int t = word.size() - 1;
-		// 文字による素性
-		for(int i = 0;i <= _c_max;i++){
-			if(t - i < 0){
-				break;
-			}
-			character = word[t - i];
-			char_id = get_character_id(character);
-			if(char_id > 0){    // 訓練データにないものは無視
-				features[i] = char_id;
-			}
-		}
-		// 文字種による素性
-		// Unicodeでは全280種
-		for(int i = 0;i <= _t_max;i++){
-			if(t - i < 0){
-				break;
-			}
-			character = word[t - i];
-			unsigned int type = chartype::get_type(character);
-			features[i + _c_max + 1] = type;
-		}
-		// t以前の同じ文字種の数
-		int cont = 0;
-		unsigned int basetype = chartype::get_type(word[t]);
-		for(int i = 1;i < _coverage;i++){
-			if(t - i < 0){
-				break;
-			}
-			character = word[t - i];
-			unsigned int type = chartype::get_type(character);
-			if(type == basetype){
-				cont += 1;
-			}
-		}
-		features[_c_max + _t_max + 2] = cont;
-		// 文字種が変わった数
-		int ch = 0;
-		for(int i = 1;i < _coverage;i++){
-			if(t - i < 0){
-				break;
-			}
-			character = word[t - i];
-			unsigned int type = chartype::get_type(character);
-			if(type != basetype){
-				ch += 1;
-				basetype = type;
-			}
-		}
-		features[_c_max + _t_max + 3] = ch;
-		return features;
 	}
 	double compute_joint_log_likelihood_given_indices(const vector<int> &indices){
 		double ll = 0;
@@ -558,22 +629,12 @@ public:
 		int atari = 0;
 		for(auto word: _word_set){
 			int length_pred = predict_word_length(word, threshold, max_word_length);
-			if(length_pred == word.size()){
+			if(length_pred >= word.size()){
 				atari += 1;
 			}
 			total += 1;
 		}
 		return atari / (double)total;
-	}
-	int get_word_length_exceeds_threshold(double r, double p, double threshold, int max_word_length){
-		int l = 1;
-		for(;l <= max_word_length;l++){
-			double cum = _glm->compute_cumulative_probability(l, r, p);
-			if(cum >= threshold){
-				break;
-			}
-		}
-		return l;
 	}
 	int predict_word_length(const wstring &word, double threshold, int max_word_length){
 		int* feature = extract_features(word);
@@ -587,21 +648,10 @@ public:
 		return 1.0 - (_mcmc_num_rejection + 1) / (double)(_mcmc_total_transition + 1);
 	}
 	void save(string filename){
-		_glm->save(filename);
-	}
-};
-
-class PyGLM{
-public:
-	GLM* _glm;
-	PyGLM(string filename){
-		_glm = new GLM();
-	}
-	~PyGLM(){
-
-	}
-	void load(string filename){
-		_glm->load(filename);
+		std::ofstream ofs(filename);
+		boost::archive::binary_oarchive oarchive(ofs);
+		oarchive << *_glm;
+		oarchive << _char_ids;
 	}
 };
 
@@ -617,6 +667,7 @@ BOOST_PYTHON_MODULE(model){
 	.def("compute_mean_precision", &PyTrainer::compute_mean_precision)
 	.def("save", &PyTrainer::save);
 
-	python::class_<PyGLM>("glm", python::init<std::string>())
+	python::class_<PyGLM>("glm", python::init<>())
+	.def("predict_word_length", &PyGLM::predict_word_length)
 	.def("load", &PyGLM::load);
 }
