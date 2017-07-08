@@ -103,13 +103,14 @@ public:
 				break;
 			}
 		}
-		return l;
+		return std::min(l, max_word_length);
 	}
 	int predict_word_length(wstring word, double threshold, int max_word_length){
 		int* feature = extract_features(word);
 		double p = _glm->compute_p(feature);
 		double r = _glm->compute_r(feature);
 		int length = get_word_length_exceeds_threshold(r, p, threshold, max_word_length);
+		assert(length <= max_word_length);
 		delete[] feature;
 		return length;
 	}
@@ -188,7 +189,7 @@ private:
 	Indices** _indices_wx_cont;
 	Indices** _indices_wx_ch;
 public:
-	unordered_set<wstring> _word_set;
+	vector<std::pair<int, wstring>> _length_substr_pair;
 	int _coverage;
 	int _c_max;
 	int _t_max;
@@ -291,10 +292,11 @@ public:
 			_indices_wx_ch[i] = new Indices();
 		}
 		std::pair<int, int*> pair;
-		for(auto word: _word_set){
-			int word_length = word.size();
-			int* features = extract_features(word);
-			pair.first = word_length;
+		for(auto &data: _length_substr_pair){
+			int true_length = data.first;
+			wstring &substr = data.second;
+			int* features = extract_features(substr);
+			pair.first = true_length;
 			pair.second = features;
 			_length_features_pair.push_back(pair);
 			int feature_index = _length_features_pair.size() - 1;
@@ -356,12 +358,23 @@ public:
 		_compiled = true;
 	}
 	void add_words(const vector<wstring> &words){
-		for(auto &word: words){
-			auto itr = _word_set.find(word);
-			if(itr == _word_set.end()){
-				_word_set.insert(word);
-				add_character(word);
-			}
+		std::pair<int, wstring> pair;
+		wstring sentence;
+		for(const auto &word: words){
+			sentence += word;
+		}
+		// wcout << sentence << endl;
+		int substr_end = -1;
+		for(const auto &word: words){
+			substr_end += word.length();
+			int substr_start = std::max(0, substr_end - _coverage);
+			wstring substr(sentence.begin() + substr_start, sentence.begin() + substr_end + 1);
+			// wcout << word << " : " << substr << endl;
+			int true_length = word.length();
+			pair.first = true_length;
+			pair.second = substr;
+			_length_substr_pair.push_back(pair);
+			add_character(word);
 		}
 	}
 	void add_character(const wstring &word){
@@ -375,9 +388,11 @@ public:
 	void dump_words(){
 		cout << "word	feature" << endl;
 		int num_features = _glm->get_num_features();
-		for(auto word: _word_set){
-			int* feature = extract_features(word);
-			wcout << word << "	";
+		for(auto &pair: _length_substr_pair){
+			int true_length = pair.first;
+			wstring &substr = pair.second;
+			int* feature = extract_features(substr);
+			wcout << substr << "	";
 			for(int i = 0;i < num_features;i++){
 				wcout << feature[i] << ", ";
 			}
@@ -619,7 +634,7 @@ public:
 		}
 	}
 	int get_num_words(){
-		return _word_set.size();
+		return _length_substr_pair.size();
 	}
 	int get_num_characters(){
 		return _char_ids.size();
@@ -627,9 +642,11 @@ public:
 	double compute_mean_precision(double threshold, int max_word_length){
 		int total = 0;
 		int atari = 0;
-		for(auto word: _word_set){
-			int length_pred = predict_word_length(word, threshold, max_word_length);
-			if(length_pred >= word.size()){
+		for(auto &pair: _length_substr_pair){
+			int true_length = pair.first;
+			wstring &substr = pair.second;
+			int pred_length = predict_word_length(substr, threshold, max_word_length);
+			if(pred_length >= true_length){
 				atari += 1;
 			}
 			total += 1;
