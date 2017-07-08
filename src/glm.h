@@ -4,6 +4,7 @@
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/serialization/split_free.hpp>
+#include <boost/math/special_functions/beta.hpp>
 #include <vector>
 #include <unordered_set>
 #include <unordered_map>
@@ -179,9 +180,11 @@ namespace npycrf{
 			u += _wp_cont[feature[_c_max + _t_max + 3]];	// ch
 			return sigmoid(u);
 		}
+		double compute_cumulative_probability(double l, double r, double p){
+			return 1 - boost::math::ibeta(l + 1, r, p);
+		}
 		template <class Archive>
-		void serialize(Archive &ar, unsigned int version)
-		{
+		void serialize(Archive &ar, unsigned int version){
 			boost::serialization::split_free(ar, *this, version);
 		}
 		void save(std::string filename){

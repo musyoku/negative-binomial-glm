@@ -57,8 +57,19 @@ public:
 	int _c_max;
 	int _t_max;
 	double _randwalk_sigma;
+	int _mcmc_total_transition;
+	int _mcmc_num_rejection;
 
 	PyTrainer(int coverage, int c_max, int t_max, double randwalk_sigma){
+		// 日本語周り
+		setlocale(LC_CTYPE, "");
+		ios_base::sync_with_stdio(false);
+		locale default_loc("");
+		locale::global(default_loc);
+		locale ctype_default(locale::classic(), default_loc, locale::ctype);
+		wcout.imbue(ctype_default);
+		wcin.imbue(ctype_default);
+
 		_glm = new GLM(coverage, c_max, t_max);
 		_coverage = coverage;
 		_c_max = c_max;
@@ -69,6 +80,8 @@ public:
 		_indices_wx_t = NULL;
 		_indices_wx_cont = NULL;
 		_indices_wx_ch = NULL;
+		_mcmc_total_transition = 0;
+		_mcmc_num_rejection = 0;
 	}
 	~PyTrainer(){
 		for(auto pair: _length_features_pair){
@@ -204,8 +217,8 @@ public:
 		_glm->init_weights(_char_ids.size());
 		_compiled = true;
 	}
-	void add_words(vector<wstring> &words){
-		for(auto word: words){
+	void add_words(const vector<wstring> &words){
+		for(auto &word: words){
 			auto itr = _word_set.find(word);
 			if(itr == _word_set.end()){
 				_word_set.insert(word);
@@ -213,7 +226,7 @@ public:
 			}
 		}
 	}
-	void add_character(wstring &word){
+	void add_character(const wstring &word){
 		for(auto character: word){
 			auto itr = _char_ids.find(character);
 			if(itr == _char_ids.end()){
@@ -357,15 +370,17 @@ public:
 			// cout << "#indices: " << indices->size() << endl;
 			double old_weight = _glm->_wp_c[i][cid];
 			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
-			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
+			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wp_c[i][cid] = new_weight;
-			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
 			double bernoulli = sampler::uniform(0, 1);
+			_mcmc_total_transition += 1;
 			if(bernoulli > acceptance_ratio){
 				_glm->_wp_c[i][cid] = old_weight;	// 棄却
+				_mcmc_num_rejection += 1;
 			}
 		}
 	}
@@ -380,15 +395,17 @@ public:
 			// cout << "#indices: " << indices->size() << endl;
 			double old_weight = _glm->_wp_t[i][type];
 			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
-			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
+			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wp_t[i][type] = new_weight;
-			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
 			double bernoulli = sampler::uniform(0, 1);
+			_mcmc_total_transition += 1;
 			if(bernoulli > acceptance_ratio){
 				_glm->_wp_t[i][type] = old_weight;	// 棄却
+				_mcmc_num_rejection += 1;
 			}
 		}
 	}
@@ -401,15 +418,17 @@ public:
 		// cout << "#indices: " << indices->size() << endl;
 		double old_weight = _glm->_wp_cont[cont];
 		double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
-		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
+		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 		_glm->_wp_cont[cont] = new_weight;
-		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
 		double bernoulli = sampler::uniform(0, 1);
+		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
 			_glm->_wp_cont[cont] = old_weight;	// 棄却
+			_mcmc_num_rejection += 1;
 		}
 	}
 	void sample_wp_ch_randomly(){
@@ -428,8 +447,10 @@ public:
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
 		double bernoulli = sampler::uniform(0, 1);
+		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
 			_glm->_wp_ch[ch] = old_weight;	// 棄却
+			_mcmc_num_rejection += 1;
 		}
 	}
 
@@ -444,15 +465,17 @@ public:
 			// cout << "#indices: " << indices->size() << endl;
 			double old_weight = _glm->_wr_c[i][cid];
 			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
-			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
+			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wr_c[i][cid] = new_weight;
-			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
 			double bernoulli = sampler::uniform(0, 1);
+			_mcmc_total_transition += 1;
 			if(bernoulli > acceptance_ratio){
 				_glm->_wr_c[i][cid] = old_weight;	// 棄却
+				_mcmc_num_rejection += 1;
 			}
 		}
 	}
@@ -467,15 +490,16 @@ public:
 			// cout << "#indices: " << indices->size() << endl;
 			double old_weight = _glm->_wr_t[i][type];
 			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
-			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
+			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wr_t[i][type] = new_weight;
-			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
 			double bernoulli = sampler::uniform(0, 1);
 			if(bernoulli > acceptance_ratio){
 				_glm->_wr_t[i][type] = old_weight;	// 棄却
+				_mcmc_num_rejection += 1;
 			}
 		}
 	}
@@ -488,15 +512,17 @@ public:
 		// cout << "#indices: " << indices->size() << endl;
 		double old_weight = _glm->_wr_cont[cont];
 		double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
-		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
+		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 		_glm->_wr_cont[cont] = new_weight;
-		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
 		double bernoulli = sampler::uniform(0, 1);
+		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
 			_glm->_wr_cont[cont] = old_weight;	// 棄却
+			_mcmc_num_rejection += 1;
 		}
 	}
 	void sample_wr_ch_randomly(){
@@ -515,15 +541,53 @@ public:
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
 		double bernoulli = sampler::uniform(0, 1);
+		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
 			_glm->_wr_ch[ch] = old_weight;	// 棄却
+			_mcmc_num_rejection += 1;
 		}
+	}
+	int get_num_words(){
+		return _word_set.size();
+	}
+	int get_num_characters(){
+		return _char_ids.size();
+	}
+	double compute_mean_precision(double threshold, int max_word_length){
+		int total = 0;
+		int atari = 0;
+		for(auto word: _word_set){
+			int length_pred = predict_word_length(word, threshold, max_word_length);
+			if(length_pred == word.size()){
+				atari += 1;
+			}
+			total += 1;
+		}
+		return atari / (double)total;
+	}
+	int get_word_length_exceeds_threshold(double r, double p, double threshold, int max_word_length){
+		int l = 1;
+		for(;l <= max_word_length;l++){
+			double cum = _glm->compute_cumulative_probability(l, r, p);
+			if(cum >= threshold){
+				break;
+			}
+		}
+		return l;
+	}
+	int predict_word_length(const wstring &word, double threshold, int max_word_length){
+		int* feature = extract_features(word);
+		double p = _glm->compute_p(feature);
+		double r = _glm->compute_r(feature);
+		int length = get_word_length_exceeds_threshold(r, p, threshold, max_word_length);
+		delete[] feature;
+		return length;
+	}
+	double get_acceptance_rate(){
+		return 1.0 - (_mcmc_num_rejection + 1) / (double)(_mcmc_total_transition + 1);
 	}
 	void save(string filename){
 		_glm->save(filename);
-	}
-	void load(string filename){
-		_glm->load(filename);
 	}
 };
 
@@ -537,7 +601,7 @@ public:
 
 	}
 	void load(string filename){
-		
+		_glm->load(filename);
 	}
 };
 
@@ -546,7 +610,11 @@ BOOST_PYTHON_MODULE(model){
 	.def("add_textfile", &PyTrainer::add_textfile)
 	.def("compile", &PyTrainer::compile)
 	.def("perform_mcmc", &PyTrainer::perform_mcmc)
+	.def("get_acceptance_rate", &PyTrainer::get_acceptance_rate)
+	.def("get_num_words", &PyTrainer::get_num_words)
+	.def("get_num_characters", &PyTrainer::get_num_characters)
 	.def("compute_joint_log_likelihood", &PyTrainer::compute_joint_log_likelihood)
+	.def("compute_mean_precision", &PyTrainer::compute_mean_precision)
 	.def("save", &PyTrainer::save);
 
 	python::class_<PyGLM>("glm", python::init<std::string>())
