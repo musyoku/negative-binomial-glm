@@ -316,13 +316,23 @@ public:
 		features[_c_max + _t_max + 3] = ch;
 		return features;
 	}
-	double compute_joint_log_likelihood(vector<int> &indices){
+	double compute_joint_log_likelihood_given_indices(vector<int> &indices){
 		double ll = 0;
 		for(int i: indices){
 			std::pair<int, int*> &pair = _length_features_pair[i];
 			int word_length = pair.first;
 			int* features = pair.second;
-			cout << features[0] << endl;
+			double r = _glm->compute_r(features);
+			double p = _glm->compute_p(features);
+			ll += _glm->compute_nb_log_likelihood(word_length, r, p);
+		}
+		return ll;
+	}
+	double compute_joint_log_likelihood(){
+		double ll = 0;
+		for(auto &pair: _length_features_pair){
+			int word_length = pair.first;
+			int* features = pair.second;
 			double r = _glm->compute_r(features);
 			double p = _glm->compute_p(features);
 			ll += _glm->compute_nb_log_likelihood(word_length, r, p);
@@ -330,21 +340,186 @@ public:
 		return ll;
 	}
 	void perform_mcmc(){
+		sample_wp_c_randomly();
+		sample_wp_t_randomly();
+		sample_wp_cont_randomly();
+		sample_wp_ch_randomly();
+		sample_wr_c_randomly();
+		sample_wr_t_randomly();
+		sample_wr_cont_randomly();
+		sample_wr_ch_randomly();
+	}
+	void sample_wp_c_randomly(){
 		int num_characters = _char_ids.size();
-		int num_types = CTYPE_TOTAL_TYPE;	// Unicode
 		for(int i = 0;i <= _c_max;i++){
-			int cid = sampler::uniform_int(1, num_characters + 1);	// 文字IDは1スタート
+			int cid = sampler::randint(1, num_characters + 1);	// 文字IDは1スタート
 			Indices* indices = _indices_wx_c[i][cid - 1];			// 配列は0から
 			if(indices->size() == 0){
 				continue;
 			}
-			cout << "#indices: " << indices->size() << endl;
-			double original_weight = _glm->_wp_c[i][cid];
-			double new_weight = original_weight + sampler::normal(0, _randwalk_sigma);
-			double ll_before = compute_joint_log_likelihood(indices->_indices);
+			// cout << "#indices: " << indices->size() << endl;
+			double old_weight = _glm->_wp_c[i][cid];
+			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
 			_glm->_wp_c[i][cid] = new_weight;
-			double ll_after = compute_joint_log_likelihood(indices->_indices);
-			cout << "before: " << ll_before << ", after: " << ll_after << endl;
+			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
+			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+			double bernoulli = sampler::uniform(0, 1);
+			if(bernoulli > acceptance_ratio){
+				_glm->_wp_c[i][cid] = old_weight;	// 棄却
+			}
+		}
+	}
+	void sample_wp_t_randomly(){
+		int num_types = CTYPE_TOTAL_TYPE;	// Unicode
+		for(int i = 0;i <= _t_max;i++){
+			int type = sampler::randint(0, num_types);
+			Indices* indices = _indices_wx_t[i][type];
+			if(indices->size() == 0){
+				continue;
+			}
+			// cout << "#indices: " << indices->size() << endl;
+			double old_weight = _glm->_wp_t[i][type];
+			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
+			_glm->_wp_t[i][type] = new_weight;
+			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
+			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+			double bernoulli = sampler::uniform(0, 1);
+			if(bernoulli > acceptance_ratio){
+				_glm->_wp_t[i][type] = old_weight;	// 棄却
+			}
+		}
+	}
+	void sample_wp_cont_randomly(){
+		int cont = sampler::randint(0, _coverage);
+		Indices* indices = _indices_wx_cont[cont];
+		if(indices->size() == 0){
+			return;
+		}
+		// cout << "#indices: " << indices->size() << endl;
+		double old_weight = _glm->_wp_cont[cont];
+		double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
+		_glm->_wp_cont[cont] = new_weight;
+		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
+		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+		double bernoulli = sampler::uniform(0, 1);
+		if(bernoulli > acceptance_ratio){
+			_glm->_wp_cont[cont] = old_weight;	// 棄却
+		}
+	}
+	void sample_wp_ch_randomly(){
+		int ch = sampler::randint(0, _coverage);
+		Indices* indices = _indices_wx_ch[ch];
+		if(indices->size() == 0){
+			return;
+		}
+		// cout << "#indices: " << indices->size() << endl;
+		double old_weight = _glm->_wp_ch[ch];
+		double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
+		_glm->_wp_ch[ch] = new_weight;
+		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
+		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
+		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+		double bernoulli = sampler::uniform(0, 1);
+		if(bernoulli > acceptance_ratio){
+			_glm->_wp_ch[ch] = old_weight;	// 棄却
+		}
+	}
+
+	void sample_wr_c_randomly(){
+		int num_characters = _char_ids.size();
+		for(int i = 0;i <= _c_max;i++){
+			int cid = sampler::randint(1, num_characters + 1);	// 文字IDは1スタート
+			Indices* indices = _indices_wx_c[i][cid - 1];			// 配列は0から
+			if(indices->size() == 0){
+				continue;
+			}
+			// cout << "#indices: " << indices->size() << endl;
+			double old_weight = _glm->_wr_c[i][cid];
+			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
+			_glm->_wr_c[i][cid] = new_weight;
+			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
+			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+			double bernoulli = sampler::uniform(0, 1);
+			if(bernoulli > acceptance_ratio){
+				_glm->_wr_c[i][cid] = old_weight;	// 棄却
+			}
+		}
+	}
+	void sample_wr_t_randomly(){
+		int num_types = CTYPE_TOTAL_TYPE;	// Unicode
+		for(int i = 0;i <= _t_max;i++){
+			int type = sampler::randint(0, num_types);
+			Indices* indices = _indices_wx_t[i][type];
+			if(indices->size() == 0){
+				continue;
+			}
+			// cout << "#indices: " << indices->size() << endl;
+			double old_weight = _glm->_wr_t[i][type];
+			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
+			_glm->_wr_t[i][type] = new_weight;
+			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
+			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+			double bernoulli = sampler::uniform(0, 1);
+			if(bernoulli > acceptance_ratio){
+				_glm->_wr_t[i][type] = old_weight;	// 棄却
+			}
+		}
+	}
+	void sample_wr_cont_randomly(){
+		int cont = sampler::randint(0, _coverage);
+		Indices* indices = _indices_wx_cont[cont];
+		if(indices->size() == 0){
+			return;
+		}
+		// cout << "#indices: " << indices->size() << endl;
+		double old_weight = _glm->_wr_cont[cont];
+		double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices);
+		_glm->_wr_cont[cont] = new_weight;
+		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices);
+		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
+		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+		double bernoulli = sampler::uniform(0, 1);
+		if(bernoulli > acceptance_ratio){
+			_glm->_wr_cont[cont] = old_weight;	// 棄却
+		}
+	}
+	void sample_wr_ch_randomly(){
+		int ch = sampler::randint(0, _coverage);
+		Indices* indices = _indices_wx_ch[ch];
+		if(indices->size() == 0){
+			return;
+		}
+		// cout << "#indices: " << indices->size() << endl;
+		double old_weight = _glm->_wr_ch[ch];
+		double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
+		_glm->_wr_ch[ch] = new_weight;
+		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
+		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
+		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+		double bernoulli = sampler::uniform(0, 1);
+		if(bernoulli > acceptance_ratio){
+			_glm->_wr_ch[ch] = old_weight;	// 棄却
 		}
 	}
 };

@@ -28,12 +28,12 @@ namespace npycrf{
 			std::uniform_real_distribution<double> rand(min, max);
 			return rand(mt);
 		}
-		double normal(double mean, double stddev){
-			std::normal_distribution<double> rand(mean, stddev);
+		int randint(int min = 0, int max = 0){
+			std::uniform_int_distribution<> rand(min, max - 1);
 			return rand(mt);
 		}
-		int uniform_int(int min = 0, int max = 0){
-			std::uniform_int_distribution<> rand(min, max);
+		double normal(double mean, double stddev){
+			std::normal_distribution<double> rand(mean, stddev);
 			return rand(mt);
 		}
 	} // namespace sampler

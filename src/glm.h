@@ -9,6 +9,8 @@
 #include "ctype.h"
 #include "sampler.h"
 
+#define PI 3.14159265358979323846	// 直書き
+
 // Inducing Word and Part-of-Speech with Pitman-Yor Hidden Semi-Markov Models
 // http://chasen.org/~daiti-m/paper/acl2015pyhsmm.pdf
 
@@ -135,6 +137,9 @@ namespace npycrf{
 			likelihood += l * log(p);
 			likelihood += r * log(1 - p);
 			return likelihood;
+		}
+		double compute_log_weight_prior(double w){
+			return -0.5 * w * w - log(sqrt(2.0 * PI));
 		}
 		double compute_r(int* feature){
 			double u = _wr_bias;

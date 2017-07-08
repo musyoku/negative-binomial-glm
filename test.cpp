@@ -15,6 +15,10 @@ int main(int argc, char *argv[]){
 	trainer->add_textfile("../../dataset/japanese.txt");
 	trainer->compile();
 	// trainer->dump_words();
-	trainer->perform_mcmc();
+	for(int i = 0;i < 1000;i++){
+		trainer->perform_mcmc();
+		double ll = trainer->compute_joint_log_likelihood();
+		cout << ll << endl;
+	}
 	delete trainer;
 }
