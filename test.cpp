@@ -34,6 +34,7 @@ int main(int argc, char *argv[]){
 	vector<int> histogram_attempt(max_word_length, 0);
 	vector<int> histogram_atari_over_5(max_word_length, 0);
 	vector<int> histogram_attempt_over_5(max_word_length, 0);
+	unordered_set<wstring> word_set;
 	int total_attempt_count = 0;
 	int total_atari_count = 0;
 	int total_attempt_over_5_count = 0;
@@ -78,7 +79,7 @@ int main(int argc, char *argv[]){
 				total_attempt_over_5_count += 1;
 			}
 			histogram_pred_length[pred_length - 1] += 1;
-			histogram_true_length[true_length - 1] += 1;
+			word_set.insert(word);
 			total_attempt_count += 1;
 		}
 	}
@@ -98,6 +99,10 @@ int main(int argc, char *argv[]){
 
 	cout << "\e[1mDistribution of true word lengths:\e[0m" << endl;
 	cout << "\e[1mL	Frequency\e[0m" << endl;
+	for(const auto &word: word_set){
+		int length = word.length();
+		histogram_true_length[length - 1] += 1;
+	}
 	for(int l = 0;l < max_word_length;l++){
 		cout << l + 1 << ":	" << histogram_true_length[l] << endl;
 	}
