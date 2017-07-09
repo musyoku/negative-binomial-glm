@@ -1,4 +1,3 @@
-#include <boost/python.hpp>
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/base_object.hpp>
 #include <boost/archive/binary_iarchive.hpp>
@@ -10,11 +9,14 @@
 #include <vector>
 #include <cassert>
 #include "src/glm.h"
-using namespace std;
-using namespace boost;
-using namespace npycrf;
 
-void split_word_by(const wstring &str, wchar_t delim, vector<wstring> &words){
+using std::cout;
+using std::wcout;
+using std::endl;
+using std::wstring;
+using std::string;
+
+void split_word_by(const wstring &str, wchar_t delim, std::vector<wstring> &words){
 	words.clear();
 	wstring item;
 	for(wchar_t ch: str){
@@ -34,7 +36,7 @@ void split_word_by(const wstring &str, wchar_t delim, vector<wstring> &words){
 
 class Indices{
 public:
-	vector<int> _indices;
+	std::vector<int> _indices;
 	int size(){
 		return _indices.size();
 	}
@@ -47,32 +49,32 @@ public:
     }
 };
 
-class PyGLM{
+class GLM{
 public:
-	GLM* _glm;
-	unordered_map<wchar_t, int> _char_ids;
-	PyGLM(){
+	npycrf::GLM* _glm;
+	std::unordered_map<wchar_t, int> _char_ids;
+	GLM(){
 		setlocale(LC_CTYPE, "");
-		ios_base::sync_with_stdio(false);
-		locale default_loc("");
-		locale::global(default_loc);
-		locale ctype_default(locale::classic(), default_loc, locale::ctype);
+		std::ios_base::sync_with_stdio(false);
+		std::locale default_loc("");
+		std::locale::global(default_loc);
+		std::locale ctype_default(std::locale::classic(), default_loc, std::locale::ctype);
 		wcout.imbue(ctype_default);
-		wcin.imbue(ctype_default);
+		std::wcin.imbue(ctype_default);
 		_glm = NULL;
 	}
-	PyGLM(string filename){
+	GLM(string filename){
 		setlocale(LC_CTYPE, "");
-		ios_base::sync_with_stdio(false);
-		locale default_loc("");
-		locale::global(default_loc);
-		locale ctype_default(locale::classic(), default_loc, locale::ctype);
+		std::ios_base::sync_with_stdio(false);
+		std::locale default_loc("");
+		std::locale::global(default_loc);
+		std::locale ctype_default(std::locale::classic(), default_loc, std::locale::ctype);
 		wcout.imbue(ctype_default);
-		wcin.imbue(ctype_default);
+		std::wcin.imbue(ctype_default);
 		_glm = NULL;
 		load(filename);
 	}
-	~PyGLM(){
+	~GLM(){
 		delete _glm;
 	}
 	int coverage(){
@@ -83,11 +85,11 @@ public:
 	}
 	bool load(string filename){
 		if(_glm == NULL){
-			_glm = new GLM();
+			_glm = new npycrf::GLM();
 		}
 		std::ifstream ifs(filename);
 		if(ifs.good()){
-			_glm = new GLM();
+			_glm = new npycrf::GLM();
 			boost::archive::binary_iarchive iarchive(ifs);
 			iarchive >> *_glm;
 			iarchive >> _char_ids;
@@ -196,9 +198,9 @@ struct pair_hash {
     }
 };
 
-class PyTrainer: PyGLM{
+class GLMTrainer: GLM{
 private:
-	vector<std::pair<int, int*>> _length_features_pair;
+	std::vector<std::pair<int, int*>> _length_features_pair;
 	bool _compiled;
 	// 重みの変更の影響を受ける素性ベクトルをリストアップ
 	Indices*** _indices_wx_c;
@@ -206,7 +208,7 @@ private:
 	Indices** _indices_wx_cont;
 	Indices** _indices_wx_ch;
 public:
-	unordered_set<std::pair<int, wstring>, pair_hash> _length_substr_set;
+	std::unordered_set<std::pair<int, wstring>, pair_hash> _length_substr_set;
 	int _coverage;
 	int _c_max;
 	int _t_max;
@@ -214,17 +216,17 @@ public:
 	int _mcmc_total_transition;
 	int _mcmc_num_rejection;
 
-	PyTrainer(int coverage, int c_max, int t_max, double randwalk_sigma){
+	GLMTrainer(int coverage, int c_max, int t_max, double randwalk_sigma){
 		// 日本語周り
 		setlocale(LC_CTYPE, "");
-		ios_base::sync_with_stdio(false);
-		locale default_loc("");
-		locale::global(default_loc);
-		locale ctype_default(locale::classic(), default_loc, locale::ctype);
+		std::ios_base::sync_with_stdio(false);
+		std::locale default_loc("");
+		std::locale::global(default_loc);
+		std::locale ctype_default(std::locale::classic(), default_loc, std::locale::ctype);
 		wcout.imbue(ctype_default);
-		wcin.imbue(ctype_default);
+		std::wcin.imbue(ctype_default);
 
-		_glm = new GLM(coverage, c_max, t_max);
+		_glm = new npycrf::GLM(coverage, c_max, t_max);
 		_coverage = coverage;
 		_c_max = c_max;
 		_t_max = t_max;
@@ -237,7 +239,7 @@ public:
 		_mcmc_total_transition = 0;
 		_mcmc_num_rejection = 0;
 	}
-	~PyTrainer(){
+	~GLMTrainer(){
 		for(auto pair: _length_features_pair){
 			delete[] pair.second;
 		}
@@ -268,17 +270,14 @@ public:
 		}
 	}
 	void add_textfile(string filename){
-		wifstream ifs(filename.c_str());
+		std::wifstream ifs(filename.c_str());
 		wstring sentence;
 		assert(ifs.fail() == false);
 		while (getline(ifs, sentence)){
 			if(sentence.empty()){
 				continue;
 			}
-			if (PyErr_CheckSignals() != 0) {		// ctrl+cが押されたかチェック
-				return;
-			}
-			vector<wstring> words;
+			std::vector<wstring> words;
 			split_word_by(sentence, L' ', words);
 			add_words(words);
 		}
@@ -373,7 +372,7 @@ public:
 		_glm->init_weights(_char_ids.size());
 		_compiled = true;
 	}
-	void add_words(const vector<wstring> &words){
+	void add_words(const std::vector<wstring> &words){
 		std::pair<int, wstring> pair;
 		// 文にする
 		wstring sentence;
@@ -434,7 +433,7 @@ public:
 			wcout << character << "	" << elem.second << "	" << name << endl;
 		}
 	}
-	double compute_joint_log_likelihood_given_indices(const vector<int> &indices){
+	double compute_joint_log_likelihood_given_indices(const std::vector<int> &indices){
 		double ll = 0;
 		for(int i: indices){
 			std::pair<int, int*> &pair = _length_features_pair[i];
@@ -470,21 +469,21 @@ public:
 	void sample_wp_c_randomly(){
 		int num_characters = _char_ids.size();
 		for(int i = 0;i <= _c_max;i++){
-			int cid = sampler::randint(1, num_characters + 1);	// 文字IDは1スタート
+			int cid = npycrf::sampler::randint(1, num_characters + 1);	// 文字IDは1スタート
 			Indices* indices = _indices_wx_c[i][cid - 1];			// 配列は0から
 			if(indices->size() == 0){
 				continue;
 			}
 			// cout << "#indices: " << indices->size() << endl;
 			double old_weight = _glm->_wp_c[i][cid];
-			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+			double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wp_c[i][cid] = new_weight;
 			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
-			double bernoulli = sampler::uniform(0, 1);
+			double bernoulli = npycrf::sampler::uniform(0, 1);
 			_mcmc_total_transition += 1;
 			if(bernoulli > acceptance_ratio){
 				_glm->_wp_c[i][cid] = old_weight;	// 棄却
@@ -495,21 +494,21 @@ public:
 	void sample_wp_t_randomly(){
 		int num_types = CTYPE_TOTAL_TYPE;	// Unicode
 		for(int i = 0;i <= _t_max;i++){
-			int type = sampler::randint(0, num_types);
+			int type = npycrf::sampler::randint(0, num_types);
 			Indices* indices = _indices_wx_t[i][type];
 			if(indices->size() == 0){
 				continue;
 			}
 			// cout << "#indices: " << indices->size() << endl;
 			double old_weight = _glm->_wp_t[i][type];
-			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+			double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wp_t[i][type] = new_weight;
 			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
-			double bernoulli = sampler::uniform(0, 1);
+			double bernoulli = npycrf::sampler::uniform(0, 1);
 			_mcmc_total_transition += 1;
 			if(bernoulli > acceptance_ratio){
 				_glm->_wp_t[i][type] = old_weight;	// 棄却
@@ -518,21 +517,21 @@ public:
 		}
 	}
 	void sample_wp_cont_randomly(){
-		int cont = sampler::randint(0, _coverage);
+		int cont = npycrf::sampler::randint(0, _coverage);
 		Indices* indices = _indices_wx_cont[cont];
 		if(indices->size() == 0){
 			return;
 		}
 		// cout << "#indices: " << indices->size() << endl;
 		double old_weight = _glm->_wp_cont[cont];
-		double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+		double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 		_glm->_wp_cont[cont] = new_weight;
 		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
-		double bernoulli = sampler::uniform(0, 1);
+		double bernoulli = npycrf::sampler::uniform(0, 1);
 		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
 			_glm->_wp_cont[cont] = old_weight;	// 棄却
@@ -540,21 +539,21 @@ public:
 		}
 	}
 	void sample_wp_ch_randomly(){
-		int ch = sampler::randint(0, _coverage);
+		int ch = npycrf::sampler::randint(0, _coverage);
 		Indices* indices = _indices_wx_ch[ch];
 		if(indices->size() == 0){
 			return;
 		}
 		// cout << "#indices: " << indices->size() << endl;
 		double old_weight = _glm->_wp_ch[ch];
-		double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+		double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 		_glm->_wp_ch[ch] = new_weight;
 		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
-		double bernoulli = sampler::uniform(0, 1);
+		double bernoulli = npycrf::sampler::uniform(0, 1);
 		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
 			_glm->_wp_ch[ch] = old_weight;	// 棄却
@@ -565,21 +564,21 @@ public:
 	void sample_wr_c_randomly(){
 		int num_characters = _char_ids.size();
 		for(int i = 0;i <= _c_max;i++){
-			int cid = sampler::randint(1, num_characters + 1);	// 文字IDは1スタート
+			int cid = npycrf::sampler::randint(1, num_characters + 1);	// 文字IDは1スタート
 			Indices* indices = _indices_wx_c[i][cid - 1];			// 配列は0から
 			if(indices->size() == 0){
 				continue;
 			}
 			// cout << "#indices: " << indices->size() << endl;
 			double old_weight = _glm->_wr_c[i][cid];
-			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+			double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wr_c[i][cid] = new_weight;
 			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
-			double bernoulli = sampler::uniform(0, 1);
+			double bernoulli = npycrf::sampler::uniform(0, 1);
 			_mcmc_total_transition += 1;
 			if(bernoulli > acceptance_ratio){
 				_glm->_wr_c[i][cid] = old_weight;	// 棄却
@@ -590,21 +589,21 @@ public:
 	void sample_wr_t_randomly(){
 		int num_types = CTYPE_TOTAL_TYPE;	// Unicode
 		for(int i = 0;i <= _t_max;i++){
-			int type = sampler::randint(0, num_types);
+			int type = npycrf::sampler::randint(0, num_types);
 			Indices* indices = _indices_wx_t[i][type];
 			if(indices->size() == 0){
 				continue;
 			}
 			// cout << "#indices: " << indices->size() << endl;
 			double old_weight = _glm->_wr_t[i][type];
-			double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+			double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wr_t[i][type] = new_weight;
 			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
-			double bernoulli = sampler::uniform(0, 1);
+			double bernoulli = npycrf::sampler::uniform(0, 1);
 			if(bernoulli > acceptance_ratio){
 				_glm->_wr_t[i][type] = old_weight;	// 棄却
 				_mcmc_num_rejection += 1;
@@ -612,21 +611,21 @@ public:
 		}
 	}
 	void sample_wr_cont_randomly(){
-		int cont = sampler::randint(0, _coverage);
+		int cont = npycrf::sampler::randint(0, _coverage);
 		Indices* indices = _indices_wx_cont[cont];
 		if(indices->size() == 0){
 			return;
 		}
 		// cout << "#indices: " << indices->size() << endl;
 		double old_weight = _glm->_wr_cont[cont];
-		double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+		double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 		_glm->_wr_cont[cont] = new_weight;
 		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
-		double bernoulli = sampler::uniform(0, 1);
+		double bernoulli = npycrf::sampler::uniform(0, 1);
 		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
 			_glm->_wr_cont[cont] = old_weight;	// 棄却
@@ -634,21 +633,21 @@ public:
 		}
 	}
 	void sample_wr_ch_randomly(){
-		int ch = sampler::randint(0, _coverage);
+		int ch = npycrf::sampler::randint(0, _coverage);
 		Indices* indices = _indices_wx_ch[ch];
 		if(indices->size() == 0){
 			return;
 		}
 		// cout << "#indices: " << indices->size() << endl;
 		double old_weight = _glm->_wr_ch[ch];
-		double new_weight = old_weight + sampler::normal(0, _randwalk_sigma);
+		double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 		_glm->_wr_ch[ch] = new_weight;
 		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
 		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
 		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
-		double bernoulli = sampler::uniform(0, 1);
+		double bernoulli = npycrf::sampler::uniform(0, 1);
 		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
 			_glm->_wr_ch[ch] = old_weight;	// 棄却
@@ -692,20 +691,3 @@ public:
 		oarchive << _char_ids;
 	}
 };
-
-BOOST_PYTHON_MODULE(model){
-	python::class_<PyTrainer>("trainer", python::init<int, int, int, double>())
-	.def("add_textfile", &PyTrainer::add_textfile)
-	.def("compile", &PyTrainer::compile)
-	.def("perform_mcmc", &PyTrainer::perform_mcmc)
-	.def("get_acceptance_rate", &PyTrainer::get_acceptance_rate)
-	.def("get_num_words", &PyTrainer::get_num_words)
-	.def("get_num_characters", &PyTrainer::get_num_characters)
-	.def("compute_joint_log_likelihood", &PyTrainer::compute_joint_log_likelihood)
-	.def("compute_mean_precision", &PyTrainer::compute_mean_precision)
-	.def("save", &PyTrainer::save);
-
-	python::class_<PyGLM>("glm", python::init<>())
-	.def("predict_word_length", &PyGLM::predict_word_length)
-	.def("load", &PyGLM::load);
-}

@@ -1,5 +1,6 @@
 #include <numeric>
-#include "../model.cpp"
+#include "model.cpp"
+
 using namespace std;
 
 double compute_mean(vector<double> &v){
@@ -17,11 +18,10 @@ double compute_stddev(vector<double> &v, double mean){
 }
 
 int main(int argc, char *argv[]){
-	PyGLM* glm = new PyGLM();
+	GLM* glm = new GLM();
 	assert(glm->load("glm.model"));
-	string filename = "../../../dataset/test.txt";
+	string filename = "../../dataset/test.txt";
 	wifstream ifs(filename.c_str());
-    // ifs.imbue(locale(locale::empty(), new codecvt_utf8<wchar_t>));
 	double threshold = 0.99;
 	int max_word_length = 16;
 	assert(ifs.fail() == false);

@@ -1,10 +1,11 @@
 #include <chrono>
-#include "../model.cpp"
+#include "model.cpp"
+
 using namespace std;
 
 int main(int argc, char *argv[]){
-	PyTrainer* trainer = new PyTrainer(8, 1, 4, 0.2);
-	trainer->add_textfile("../../../dataset/train.txt");
+	GLMTrainer* trainer = new GLMTrainer(8, 1, 4, 0.2);
+	trainer->add_textfile("../../dataset/train.txt");
 	trainer->compile();
 	cout << "#words: " << trainer->get_num_words() << endl;
 	cout << "#characters: " << trainer->get_num_characters() << endl;

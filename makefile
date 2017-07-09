@@ -1,15 +1,14 @@
 CC = g++
-INCLUDE = -I`python -c 'from distutils.sysconfig import *; print get_python_inc()'`
-BOOST = -lboost_python -lpython2.7 -lboost_serialization
+BOOST = -lboost_serialization
 CFLAGS = -std=c++11 -L/usr/local/lib -O3
 
 .PHONY: train
 train: ## 学習用
-	$(CC) train.cpp -o train $(CFLAGS) $(INCLUDE) $(BOOST)
+	$(CC) train.cpp -o train $(CFLAGS) $(BOOST)
 
 .PHONY: test
 test: ## テスト用
-	$(CC) test.cpp -o test $(CFLAGS) $(INCLUDE) $(BOOST)
+	$(CC) test.cpp -o test $(CFLAGS) $(BOOST)
 
 .PHONY: help
 help:
