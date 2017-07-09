@@ -4,6 +4,7 @@
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/serialization/unordered_map.hpp>
+#include <boost/functional/hash.hpp>
 #include <locale>
 #include <fstream>
 #include <vector>
@@ -185,6 +186,16 @@ public:
 	}
 };
 
+struct pair_hash {
+    template <class T1, class T2>
+    std::size_t operator () (const std::pair<T1,T2> &p) const {
+		std::size_t seed = 0;
+		boost::hash_combine(seed, p.first);
+		boost::hash_combine(seed, p.second);
+		return seed;
+    }
+};
+
 class PyTrainer: PyGLM{
 private:
 	vector<std::pair<int, int*>> _length_features_pair;
@@ -195,7 +206,7 @@ private:
 	Indices** _indices_wx_cont;
 	Indices** _indices_wx_ch;
 public:
-	vector<std::pair<int, wstring>> _length_substr_pair;
+	unordered_set<std::pair<int, wstring>, pair_hash> _length_substr_set;
 	int _coverage;
 	int _c_max;
 	int _t_max;
@@ -298,10 +309,9 @@ public:
 			_indices_wx_ch[i] = new Indices();
 		}
 		std::pair<int, int*> pair;
-		for(auto &data: _length_substr_pair){
+		for(auto &data: _length_substr_set){
 			int true_length = data.first;
-			wstring &substr = data.second;
-			int* features = extract_features(substr);
+			int* features = extract_features(data.second);
 			pair.first = true_length;
 			pair.second = features;
 			_length_features_pair.push_back(pair);
@@ -381,7 +391,10 @@ public:
 			int true_length = word.length();
 			pair.first = true_length;
 			pair.second = substr;
-			_length_substr_pair.push_back(pair);
+			auto itr = _length_substr_set.find(pair);
+			if(itr == _length_substr_set.end()){
+				_length_substr_set.insert(pair);
+			}
 			add_character(word);
 		}
 	}
@@ -396,9 +409,9 @@ public:
 	void dump_words(){
 		cout << "word	feature" << endl;
 		int num_features = _glm->get_num_features();
-		for(auto &pair: _length_substr_pair){
+		for(auto &pair: _length_substr_set){
 			int true_length = pair.first;
-			wstring &substr = pair.second;
+			wstring substr = pair.second;
 			int* feature = extract_features(substr);
 			wcout << substr << "	";
 			for(int i = 0;i < num_features;i++){
@@ -642,7 +655,7 @@ public:
 		}
 	}
 	int get_num_words(){
-		return _length_substr_pair.size();
+		return _length_substr_set.size();
 	}
 	int get_num_characters(){
 		return _char_ids.size();
@@ -650,10 +663,9 @@ public:
 	double compute_mean_precision(double threshold, int max_word_length){
 		int total = 0;
 		int atari = 0;
-		for(auto &pair: _length_substr_pair){
+		for(auto &pair: _length_substr_set){
 			int true_length = pair.first;
-			wstring &substr = pair.second;
-			int pred_length = predict_word_length(substr, threshold, max_word_length);
+			int pred_length = predict_word_length(pair.second, threshold, max_word_length);
 			if(pred_length >= true_length){
 				atari += 1;
 			}
