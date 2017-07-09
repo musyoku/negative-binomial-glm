@@ -4,7 +4,11 @@
 using namespace std;
 
 int main(int argc, char *argv[]){
-	GLMTrainer* trainer = new GLMTrainer(8, 1, 4, 0.2);
+	int coverage = 8;
+	int c_max = 1;
+	int t_max = 4;
+	double sigma = 0.2;
+	GLMTrainer* trainer = new GLMTrainer(coverage, c_max, t_max, sigma);
 	trainer->add_textfile("../../dataset/train.txt");
 	trainer->compile();
 	cout << "#words: " << trainer->get_num_words() << endl;
