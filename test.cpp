@@ -86,7 +86,7 @@ int main(int argc, char *argv[]){
 		cout << l + 1 << ":	" << precision << endl;
 	}
 	cout << "n ≥ 5:	" << total_atari_over_5_count / (double)total_attempt_over_5_count << endl;
-	cout << "total:	" << total_atari_count / (double)total_attempt_count << endl;
+	cout << "all:	" << total_atari_count / (double)total_attempt_count << endl;
 
 	cout << "\e[1mDistribution of predicted maximum word lengths:\e[0m" << endl;
 	cout << "\e[1mL	Frequency\e[0m" << endl;
