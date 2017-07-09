@@ -29,6 +29,7 @@ int main(int argc, char *argv[]){
 	// 統計
 	vector<vector<double>> errors(max_word_length);
 	vector<int> histogram_pred_length(max_word_length, 0);
+	vector<int> histogram_true_length(max_word_length, 0);
 	vector<int> histogram_atari(max_word_length, 0);
 	vector<int> histogram_attempt(max_word_length, 0);
 	vector<int> histogram_atari_over_5(max_word_length, 0);
@@ -77,6 +78,7 @@ int main(int argc, char *argv[]){
 				total_attempt_over_5_count += 1;
 			}
 			histogram_pred_length[pred_length - 1] += 1;
+			histogram_true_length[true_length - 1] += 1;
 			total_attempt_count += 1;
 		}
 	}
@@ -92,6 +94,12 @@ int main(int argc, char *argv[]){
 	cout << "\e[1mL	Frequency\e[0m" << endl;
 	for(int l = 0;l < max_word_length;l++){
 		cout << l + 1 << ":	" << histogram_pred_length[l] << endl;
+	}
+
+	cout << "\e[1mDistribution of true word lengths:\e[0m" << endl;
+	cout << "\e[1mL	Frequency\e[0m" << endl;
+	for(int l = 0;l < max_word_length;l++){
+		cout << l + 1 << ":	" << histogram_true_length[l] << endl;
 	}
 
 	// 予測と正解の誤差の平均・分散
