@@ -14,7 +14,7 @@ int main(int argc, char *argv[]){
 
 	// 統計
 	vector<double> errors;
-	vector<int> pred_length(max_word_length, 0);
+	vector<int> pred_length_histgram(max_word_length, 0);
 	vector<int> atari(max_word_length, 0);
 	vector<int> total(max_word_length, 0);
 	int total_global = 0;
@@ -27,17 +27,29 @@ int main(int argc, char *argv[]){
 		}
 		vector<wstring> words;
 		split_word_by(sentence, L' ', words);
+
+		// 文にする
+		wstring string;
+		for(const auto &word: words){
+			string += word;
+		}
+		int substr_end = -1;
 		for(auto &word: words){
-			int length_pred = glm->predict_word_length(word, threshold, max_word_length);
-			assert(length_pred <= max_word_length);
-			if(length_pred >= word.length()){
-				errors.push_back(length_pred - word.length());
-				atari[word.length() - 1] += 1;
+			substr_end += word.length();
+			// 単語ではなく単語を含む部分文字列にする
+			int substr_start = std::max(0, substr_end - glm->coverage());	// coverageの範囲の文字列を全て取る
+			wstring substr(string.begin() + substr_start, string.begin() + substr_end + 1);
+			int true_length = word.length();	// 真の長さは単語の長さ
+			int pred_length = glm->predict_word_length(substr, threshold, max_word_length);
+			assert(pred_length <= max_word_length);
+			if(pred_length >= true_length){
+				errors.push_back(pred_length - true_length);
+				atari[true_length - 1] += 1;
 				atari_global += 1;
-				wcout << word << " pred: " << length_pred << " - actual: " << word.length() << " " << word.length() << endl;
+				// wcout << word << " pred: " << pred_length << " - actual: " << true_length << " " << true_length << endl;
 			}
-			total[word.length() - 1] += 1;
-			pred_length[length_pred - 1] += 1;
+			total[true_length - 1] += 1;
+			pred_length_histgram[pred_length - 1] += 1;
 			total_global += 1;
 		}
 	}
@@ -50,7 +62,7 @@ int main(int argc, char *argv[]){
 
 	cout << "\e[1mL: Frequency\e[0m" << endl;
 	for(int l = 0;l < max_word_length;l++){
-		cout << l + 1 << ":	" << pred_length[l] << endl;
+		cout << l + 1 << ":	" << pred_length_histgram[l] << endl;
 	}
 
 	// 予測と正解の誤差の平均・分散

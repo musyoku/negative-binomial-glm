@@ -74,6 +74,12 @@ public:
 	~PyGLM(){
 		delete _glm;
 	}
+	int coverage(){
+		if(_glm == NULL){
+			return -1;
+		}
+		return _glm->_coverage;
+	}
 	bool load(string filename){
 		if(_glm == NULL){
 			_glm = new GLM();
@@ -359,6 +365,7 @@ public:
 	}
 	void add_words(const vector<wstring> &words){
 		std::pair<int, wstring> pair;
+		// 文にする
 		wstring sentence;
 		for(const auto &word: words){
 			sentence += word;
@@ -367,7 +374,8 @@ public:
 		int substr_end = -1;
 		for(const auto &word: words){
 			substr_end += word.length();
-			int substr_start = std::max(0, substr_end - _coverage);
+			// 単語ではなく単語を含む部分文字列にする
+			int substr_start = std::max(0, substr_end - _coverage);	// coverageの範囲の文字列を全て取る
 			wstring substr(sentence.begin() + substr_start, sentence.begin() + substr_end + 1);
 			// wcout << word << " : " << substr << endl;
 			int true_length = word.length();
