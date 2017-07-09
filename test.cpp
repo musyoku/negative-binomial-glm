@@ -28,11 +28,15 @@ int main(int argc, char *argv[]){
 
 	// 統計
 	vector<vector<double>> errors(max_word_length);
-	vector<int> pred_length_histgram(max_word_length, 0);
-	vector<int> atari(max_word_length, 0);
-	vector<int> total(max_word_length, 0);
-	int total_global = 0;
-	int atari_global = 0;
+	vector<int> histogram_pred_length(max_word_length, 0);
+	vector<int> histogram_atari(max_word_length, 0);
+	vector<int> histogram_attempt(max_word_length, 0);
+	vector<int> histogram_atari_over_5(max_word_length, 0);
+	vector<int> histogram_attempt_over_5(max_word_length, 0);
+	int total_attempt_count = 0;
+	int total_atari_count = 0;
+	int total_attempt_over_5_count = 0;
+	int total_atari_over_5_count = 0;
 
 	wstring sentence;
 	while (getline(ifs, sentence)){
@@ -60,27 +64,34 @@ int main(int argc, char *argv[]){
 			int pred_length = glm->predict_word_length(substr, threshold, max_word_length);
 			assert(pred_length <= max_word_length);
 			if(pred_length >= true_length){
-				atari[true_length - 1] += 1;
-				atari_global += 1;
+				histogram_atari[true_length - 1] += 1;
+				if(true_length >= 5){
+					total_atari_over_5_count += 1;
+				}
+				total_atari_count += 1;
 				// wcout << substr << " pred: " << pred_length << " - actual: " << true_length << " " << true_length << endl;
 			}
 			errors[true_length - 1].push_back(pred_length - true_length);
-			total[true_length - 1] += 1;
-			pred_length_histgram[pred_length - 1] += 1;
-			total_global += 1;
+			histogram_attempt[true_length - 1] += 1;
+			if(true_length >= 5){
+				total_attempt_over_5_count += 1;
+			}
+			histogram_pred_length[pred_length - 1] += 1;
+			total_attempt_count += 1;
 		}
 	}
 	cout << "\e[1mL	Precision \e[0m" << endl;
 	for(int l = 0;l < max_word_length;l++){
-		double precision = atari[l] / (double)total[l];
+		double precision = histogram_atari[l] / (double)histogram_attempt[l];
 		cout << l + 1 << ":	" << precision << endl;
 	}
-	cout << "total:	" << atari_global / (double)total_global << endl;
+	cout << "n ≥ 5:	" << total_atari_over_5_count / (double)total_attempt_over_5_count << endl;
+	cout << "total:	" << total_atari_count / (double)total_attempt_count << endl;
 
 	cout << "\e[1mDistribution of predicted maximum word lengths:\e[0m" << endl;
 	cout << "\e[1mL	Frequency\e[0m" << endl;
 	for(int l = 0;l < max_word_length;l++){
-		cout << l + 1 << ":	" << pred_length_histgram[l] << endl;
+		cout << l + 1 << ":	" << histogram_pred_length[l] << endl;
 	}
 
 	// 予測と正解の誤差の平均・分散
