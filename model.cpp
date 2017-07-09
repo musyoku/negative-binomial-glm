@@ -402,7 +402,8 @@ public:
 		for(auto character: word){
 			auto itr = _char_ids.find(character);
 			if(itr == _char_ids.end()){
-				_char_ids[character] = _char_ids.size() + 1;    // 0避け
+				int cid = _char_ids.size() + 1;
+				_char_ids[character] = cid;    // 0避け
 			}
 		}
 	}
