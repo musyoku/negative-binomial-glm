@@ -1,4 +1,4 @@
-# 負の二項分布の一般化線形モデルによる単語長の予測
+## 負の二項分布の一般化線形モデルによる単語長の予測
 
 Negative Binomial Generalized Linear Modelによる単語長の予測の実験コードです。
 
