@@ -54,12 +54,15 @@ int main(int argc, char *argv[]){
 			int substr_start = std::max(0, substr_end - glm->coverage());	// coverageの範囲の文字列を全て取る
 			wstring substr(string.begin() + substr_start, string.begin() + substr_end + 1);
 			int true_length = word.length();	// 真の長さは単語の長さ
+			if(true_length > 10){
+				wcout << word << endl;
+			}
 			int pred_length = glm->predict_word_length(substr, threshold, max_word_length);
 			assert(pred_length <= max_word_length);
 			if(pred_length >= true_length){
 				atari[true_length - 1] += 1;
 				atari_global += 1;
-				// wcout << word << " pred: " << pred_length << " - actual: " << true_length << " " << true_length << endl;
+				// wcout << substr << " pred: " << pred_length << " - actual: " << true_length << " " << true_length << endl;
 			}
 			errors[true_length - 1].push_back(pred_length - true_length);
 			total[true_length - 1] += 1;

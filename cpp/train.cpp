@@ -3,8 +3,8 @@
 using namespace std;
 
 int main(int argc, char *argv[]){
-	PyTrainer* trainer = new PyTrainer(8, 1, 4, 0.1);
-	trainer->add_textfile("../../../dataset/japanese.txt");
+	PyTrainer* trainer = new PyTrainer(8, 1, 4, 0.2);
+	trainer->add_textfile("../../../dataset/train.txt");
 	trainer->compile();
 	cout << "#words: " << trainer->get_num_words() << endl;
 	cout << "#characters: " << trainer->get_num_characters() << endl;
@@ -20,7 +20,7 @@ int main(int argc, char *argv[]){
 		    start = chrono::system_clock::now();
 		}
 		if(itr % 10000 == 0){
-			trainer->save("glm2.model");
+			trainer->save("glm.model");
 		}
 		itr++;
 	}
