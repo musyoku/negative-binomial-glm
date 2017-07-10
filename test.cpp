@@ -1,5 +1,5 @@
 #include <numeric>
-#include "model.cpp"
+#include "model.h"
 
 using namespace std;
 

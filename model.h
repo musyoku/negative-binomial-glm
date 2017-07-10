@@ -10,15 +10,9 @@
 #include <cassert>
 #include "src/glm.h"
 
-using std::cout;
-using std::wcout;
-using std::endl;
-using std::wstring;
-using std::string;
-
-void split_word_by(const wstring &str, wchar_t delim, std::vector<wstring> &words){
+void split_word_by(const std::wstring &str, wchar_t delim, std::vector<std::wstring> &words){
 	words.clear();
-	wstring item;
+	std::wstring item;
 	for(wchar_t ch: str){
 		if (ch == delim){
 			if (!item.empty() && item.length() > 0){
@@ -59,17 +53,17 @@ public:
 		std::locale default_loc("");
 		std::locale::global(default_loc);
 		std::locale ctype_default(std::locale::classic(), default_loc, std::locale::ctype);
-		wcout.imbue(ctype_default);
+		std::wcout.imbue(ctype_default);
 		std::wcin.imbue(ctype_default);
 		_glm = NULL;
 	}
-	GLM(string filename){
+	GLM(std::string filename){
 		setlocale(LC_CTYPE, "");
 		std::ios_base::sync_with_stdio(false);
 		std::locale default_loc("");
 		std::locale::global(default_loc);
 		std::locale ctype_default(std::locale::classic(), default_loc, std::locale::ctype);
-		wcout.imbue(ctype_default);
+		std::wcout.imbue(ctype_default);
 		std::wcin.imbue(ctype_default);
 		_glm = NULL;
 		load(filename);
@@ -83,7 +77,7 @@ public:
 		}
 		return _glm->_coverage;
 	}
-	bool load(string filename){
+	bool load(std::string filename){
 		if(_glm == NULL){
 			_glm = new npycrf::GLM();
 		}
@@ -114,7 +108,7 @@ public:
 		}
 		return std::min(l, max_word_length);
 	}
-	int predict_word_length(wstring word, double threshold, int max_word_length){
+	int predict_word_length(std::wstring word, double threshold, int max_word_length){
 		int* feature = extract_features(word);
 		double p = _glm->compute_p(feature);
 		double r = _glm->compute_r(feature);
@@ -123,7 +117,7 @@ public:
 		delete[] feature;
 		return length;
 	}
-	int* extract_features(const wstring &word){
+	int* extract_features(const std::wstring &word){
 		int c_max = _glm->_c_max;
 		int t_max = _glm->_t_max;
 		int coverage = _glm->_coverage;
@@ -208,7 +202,7 @@ private:
 	Indices** _indices_wx_cont;
 	Indices** _indices_wx_ch;
 public:
-	std::unordered_set<std::pair<int, wstring>, pair_hash> _length_substr_set;
+	std::unordered_set<std::pair<int, std::wstring>, pair_hash> _length_substr_set;
 	int _coverage;
 	int _c_max;
 	int _t_max;
@@ -223,7 +217,7 @@ public:
 		std::locale default_loc("");
 		std::locale::global(default_loc);
 		std::locale ctype_default(std::locale::classic(), default_loc, std::locale::ctype);
-		wcout.imbue(ctype_default);
+		std::wcout.imbue(ctype_default);
 		std::wcin.imbue(ctype_default);
 
 		_glm = new npycrf::GLM(coverage, c_max, t_max);
@@ -269,15 +263,15 @@ public:
 			delete[] _indices_wx_ch;
 		}
 	}
-	void add_textfile(string filename){
+	void add_textfile(std::string filename){
 		std::wifstream ifs(filename.c_str());
-		wstring sentence;
+		std::wstring sentence;
 		assert(ifs.fail() == false);
 		while (getline(ifs, sentence)){
 			if(sentence.empty()){
 				continue;
 			}
-			std::vector<wstring> words;
+			std::vector<std::wstring> words;
 			split_word_by(sentence, L' ', words);
 			add_words(words);
 		}
@@ -316,12 +310,12 @@ public:
 			_length_features_pair.push_back(pair);
 			int feature_index = _length_features_pair.size() - 1;
 			// 重みの変更の影響を受ける素性ベクトルをリストアップ
-			// wcout << "word: " << word << ", f: " << feature_index << ", feature: ";
+			// std::wcout << "word: " << word << ", f: " << feature_index << ", feature: ";
 			// int num_features = _glm->get_num_features();
 			// for(int i = 0;i < num_features;i++){
-			// 	wcout << features[i] << ", ";
+			// 	std::wcout << features[i] << ", ";
 			// }
-			// wcout << endl;
+			// std::wcout << std::endl;
 
 			for(int i = 0;i <= _c_max;i++){
 				int cid = features[i] - 1;	// 文字IDは1スタート
@@ -329,64 +323,64 @@ public:
 					continue;	// 訓練データに無い、または単語の文字数がc_max未満
 				}
 				assert(cid < num_characters);
-				// cout << "cid: " << cid << endl;
+				// std::cout << "cid: " << cid << std::endl;
 				_indices_wx_c[i][cid]->add(feature_index);
 			}
 			for(int i = 0;i <= _t_max;i++){
 				int type = features[i + _c_max + 1];
 				assert(type < CTYPE_TOTAL_TYPE);
-				// cout << "type: " << type << endl;
+				// std::cout << "type: " << type << std::endl;
 				_indices_wx_t[i][type]->add(feature_index);
 			}
 			int cont = features[_c_max + _t_max + 2];
-			// cout << "cont: " << cont << endl;
+			// std::cout << "cont: " << cont << std::endl;
 			_indices_wx_cont[cont]->add(feature_index);
 			int ch = features[_c_max + _t_max + 3];
-			// cout << "ch: " << ch << endl;
+			// std::cout << "ch: " << ch << std::endl;
 			_indices_wx_ch[ch]->add(feature_index);
 
 		}
 
-		// cout << "character:" << endl;
+		// std::cout << "character:" << std::endl;
 		// for(int i = 0;i <= _c_max;i++){
-		// 	cout << "	i=" << i << endl;
+		// 	std::cout << "	i=" << i << std::endl;
 		// 	for(int j = 0;j < num_characters;j++){
-		// 		cout << "		j=" << j << ", size=" << _indices_wx_c[i][j]->size() << endl;
+		// 		std::cout << "		j=" << j << ", size=" << _indices_wx_c[i][j]->size() << std::endl;
 		// 	}
 		// }
-		// cout << "type:" << endl;
+		// std::cout << "type:" << std::endl;
 		// for(int i = 0;i <= _t_max;i++){
-		// 	cout << "	i=" << i << endl;
+		// 	std::cout << "	i=" << i << std::endl;
 		// 	for(int j = 0;j < num_types;j++){
-		// 		cout << "		j=" << j << ", size=" << _indices_wx_t[i][j]->size() << endl;
+		// 		std::cout << "		j=" << j << ", size=" << _indices_wx_t[i][j]->size() << std::endl;
 		// 	}
 		// }
-		// cout << "cont:" << endl;
+		// std::cout << "cont:" << std::endl;
 		// for(int i = 0;i < _coverage;i++){
-		// 	cout << "	i=" << i << ", size=" << _indices_wx_cont[i]->size() << endl;
+		// 	std::cout << "	i=" << i << ", size=" << _indices_wx_cont[i]->size() << std::endl;
 		// }
-		// cout << "ch:" << endl;
+		// std::cout << "ch:" << std::endl;
 		// for(int i = 0;i < _coverage;i++){
-		// 	cout << "	i=" << i << ", size=" << _indices_wx_ch[i]->size() << endl;
+		// 	std::cout << "	i=" << i << ", size=" << _indices_wx_ch[i]->size() << std::endl;
 		// }
 		_glm->init_weights(_char_ids.size());
 		_compiled = true;
 	}
-	void add_words(const std::vector<wstring> &words){
-		std::pair<int, wstring> pair;
+	void add_words(const std::vector<std::wstring> &words){
+		std::pair<int, std::wstring> pair;
 		// 文にする
-		wstring sentence;
+		std::wstring sentence;
 		for(const auto &word: words){
 			sentence += word;
 		}
-		// wcout << sentence << endl;
+		// std::wcout << sentence << std::endl;
 		int substr_end = -1;
 		for(const auto &word: words){
 			substr_end += word.length();
 			// 単語ではなく単語を含む部分文字列にする
 			int substr_start = std::max(0, substr_end - _coverage);	// coverageの範囲の文字列を全て取る
-			wstring substr(sentence.begin() + substr_start, sentence.begin() + substr_end + 1);
-			// wcout << word << " : " << substr << endl;
+			std::wstring substr(sentence.begin() + substr_start, sentence.begin() + substr_end + 1);
+			// std::wcout << word << " : " << substr << std::endl;
 			int true_length = word.length();
 			pair.first = true_length;
 			pair.second = substr;
@@ -397,7 +391,7 @@ public:
 			add_character(word);
 		}
 	}
-	void add_character(const wstring &word){
+	void add_character(const std::wstring &word){
 		for(auto character: word){
 			auto itr = _char_ids.find(character);
 			if(itr == _char_ids.end()){
@@ -407,30 +401,30 @@ public:
 		}
 	}
 	void dump_words(){
-		cout << "word	feature" << endl;
+		std::cout << "word	feature" << std::endl;
 		int num_features = _glm->get_num_features();
 		for(auto &pair: _length_substr_set){
 			int true_length = pair.first;
-			wstring substr = pair.second;
+			std::wstring substr = pair.second;
 			int* feature = extract_features(substr);
-			wcout << substr << "	";
+			std::wcout << substr << "	";
 			for(int i = 0;i < num_features;i++){
-				wcout << feature[i] << ", ";
+				std::wcout << feature[i] << ", ";
 			}
 			double p = _glm->compute_p(feature);
 			double r = _glm->compute_r(feature);
-			wcout << p << "	" << r << "	" << endl;
+			std::wcout << p << "	" << r << "	" << std::endl;
 			delete[] feature;
 		}
 	}
 	void dump_characters(){
-		cout << "char	id	type" << endl;
+		std::cout << "char	id	type" << std::endl;
 		for(auto elem: _char_ids){
 			wchar_t character = elem.first;
 			unsigned int type = chartype::get_type(character);
 			std::wstring_convert<std::codecvt_utf8<wchar_t>,wchar_t> cv;
 			std::wstring name = cv.from_bytes(chartype::get_name(type));
-			wcout << character << "	" << elem.second << "	" << name << endl;
+			std::wcout << character << "	" << elem.second << "	" << name << std::endl;
 		}
 	}
 	double compute_joint_log_likelihood_given_indices(const std::vector<int> &indices){
@@ -474,15 +468,15 @@ public:
 			if(indices->size() == 0){
 				continue;
 			}
-			// cout << "#indices: " << indices->size() << endl;
+			// std::cout << "#indices: " << indices->size() << std::endl;
 			double old_weight = _glm->_wp_c[i][cid];
 			double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wp_c[i][cid] = new_weight;
 			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
-			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+			// std::cout << "before: " << ll_old << ", after: " << ll_new << std::endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
-			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+			// std::cout << "acceptance_ratio: " << acceptance_ratio << std::endl;
 			double bernoulli = npycrf::sampler::uniform(0, 1);
 			_mcmc_total_transition += 1;
 			if(bernoulli > acceptance_ratio){
@@ -499,15 +493,15 @@ public:
 			if(indices->size() == 0){
 				continue;
 			}
-			// cout << "#indices: " << indices->size() << endl;
+			// std::cout << "#indices: " << indices->size() << std::endl;
 			double old_weight = _glm->_wp_t[i][type];
 			double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wp_t[i][type] = new_weight;
 			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
-			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+			// std::cout << "before: " << ll_old << ", after: " << ll_new << std::endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
-			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+			// std::cout << "acceptance_ratio: " << acceptance_ratio << std::endl;
 			double bernoulli = npycrf::sampler::uniform(0, 1);
 			_mcmc_total_transition += 1;
 			if(bernoulli > acceptance_ratio){
@@ -522,15 +516,15 @@ public:
 		if(indices->size() == 0){
 			return;
 		}
-		// cout << "#indices: " << indices->size() << endl;
+		// std::cout << "#indices: " << indices->size() << std::endl;
 		double old_weight = _glm->_wp_cont[cont];
 		double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 		_glm->_wp_cont[cont] = new_weight;
 		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
-		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+		// std::cout << "before: " << ll_old << ", after: " << ll_new << std::endl;
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
-		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+		// std::cout << "acceptance_ratio: " << acceptance_ratio << std::endl;
 		double bernoulli = npycrf::sampler::uniform(0, 1);
 		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
@@ -544,15 +538,15 @@ public:
 		if(indices->size() == 0){
 			return;
 		}
-		// cout << "#indices: " << indices->size() << endl;
+		// std::cout << "#indices: " << indices->size() << std::endl;
 		double old_weight = _glm->_wp_ch[ch];
 		double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 		_glm->_wp_ch[ch] = new_weight;
 		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
-		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+		// std::cout << "before: " << ll_old << ", after: " << ll_new << std::endl;
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
-		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+		// std::cout << "acceptance_ratio: " << acceptance_ratio << std::endl;
 		double bernoulli = npycrf::sampler::uniform(0, 1);
 		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
@@ -569,15 +563,15 @@ public:
 			if(indices->size() == 0){
 				continue;
 			}
-			// cout << "#indices: " << indices->size() << endl;
+			// std::cout << "#indices: " << indices->size() << std::endl;
 			double old_weight = _glm->_wr_c[i][cid];
 			double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wr_c[i][cid] = new_weight;
 			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
-			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+			// std::cout << "before: " << ll_old << ", after: " << ll_new << std::endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
-			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+			// std::cout << "acceptance_ratio: " << acceptance_ratio << std::endl;
 			double bernoulli = npycrf::sampler::uniform(0, 1);
 			_mcmc_total_transition += 1;
 			if(bernoulli > acceptance_ratio){
@@ -594,15 +588,15 @@ public:
 			if(indices->size() == 0){
 				continue;
 			}
-			// cout << "#indices: " << indices->size() << endl;
+			// std::cout << "#indices: " << indices->size() << std::endl;
 			double old_weight = _glm->_wr_t[i][type];
 			double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 			double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 			_glm->_wr_t[i][type] = new_weight;
 			double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
-			// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+			// std::cout << "before: " << ll_old << ", after: " << ll_new << std::endl;
 			double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
-			// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+			// std::cout << "acceptance_ratio: " << acceptance_ratio << std::endl;
 			double bernoulli = npycrf::sampler::uniform(0, 1);
 			if(bernoulli > acceptance_ratio){
 				_glm->_wr_t[i][type] = old_weight;	// 棄却
@@ -616,15 +610,15 @@ public:
 		if(indices->size() == 0){
 			return;
 		}
-		// cout << "#indices: " << indices->size() << endl;
+		// std::cout << "#indices: " << indices->size() << std::endl;
 		double old_weight = _glm->_wr_cont[cont];
 		double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 		_glm->_wr_cont[cont] = new_weight;
 		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
-		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+		// std::cout << "before: " << ll_old << ", after: " << ll_new << std::endl;
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
-		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+		// std::cout << "acceptance_ratio: " << acceptance_ratio << std::endl;
 		double bernoulli = npycrf::sampler::uniform(0, 1);
 		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
@@ -638,15 +632,15 @@ public:
 		if(indices->size() == 0){
 			return;
 		}
-		// cout << "#indices: " << indices->size() << endl;
+		// std::cout << "#indices: " << indices->size() << std::endl;
 		double old_weight = _glm->_wr_ch[ch];
 		double new_weight = old_weight + npycrf::sampler::normal(0, _randwalk_sigma);
 		double ll_old = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(old_weight);
 		_glm->_wr_ch[ch] = new_weight;
 		double ll_new = compute_joint_log_likelihood_given_indices(indices->_indices) + _glm->compute_log_weight_prior(new_weight);
-		// cout << "before: " << ll_old << ", after: " << ll_new << endl;
+		// std::cout << "before: " << ll_old << ", after: " << ll_new << std::endl;
 		double acceptance_ratio = std::min(exp(ll_new - ll_old), 1.0);
-		// cout << "acceptance_ratio: " << acceptance_ratio << endl;
+		// std::cout << "acceptance_ratio: " << acceptance_ratio << std::endl;
 		double bernoulli = npycrf::sampler::uniform(0, 1);
 		_mcmc_total_transition += 1;
 		if(bernoulli > acceptance_ratio){
@@ -673,7 +667,7 @@ public:
 		}
 		return atari / (double)total;
 	}
-	int predict_word_length(const wstring &word, double threshold, int max_word_length){
+	int predict_word_length(const std::wstring &word, double threshold, int max_word_length){
 		int* feature = extract_features(word);
 		double p = _glm->compute_p(feature);
 		double r = _glm->compute_r(feature);
@@ -684,7 +678,7 @@ public:
 	double get_acceptance_rate(){
 		return 1.0 - (_mcmc_num_rejection + 1) / (double)(_mcmc_total_transition + 1);
 	}
-	void save(string filename){
+	void save(std::string filename){
 		std::ofstream ofs(filename);
 		boost::archive::binary_oarchive oarchive(ofs);
 		oarchive << *_glm;
