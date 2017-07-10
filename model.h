@@ -310,13 +310,6 @@ public:
 			_length_features_pair.push_back(pair);
 			int feature_index = _length_features_pair.size() - 1;
 			// 重みの変更の影響を受ける素性ベクトルをリストアップ
-			// std::wcout << "word: " << word << ", f: " << feature_index << ", feature: ";
-			// int num_features = _glm->get_num_features();
-			// for(int i = 0;i < num_features;i++){
-			// 	std::wcout << features[i] << ", ";
-			// }
-			// std::wcout << std::endl;
-
 			for(int i = 0;i <= _c_max;i++){
 				int cid = features[i] - 1;	// 文字IDは1スタート
 				if(cid == -1){
@@ -340,29 +333,6 @@ public:
 			_indices_wx_ch[ch]->add(feature_index);
 
 		}
-
-		// std::cout << "character:" << std::endl;
-		// for(int i = 0;i <= _c_max;i++){
-		// 	std::cout << "	i=" << i << std::endl;
-		// 	for(int j = 0;j < num_characters;j++){
-		// 		std::cout << "		j=" << j << ", size=" << _indices_wx_c[i][j]->size() << std::endl;
-		// 	}
-		// }
-		// std::cout << "type:" << std::endl;
-		// for(int i = 0;i <= _t_max;i++){
-		// 	std::cout << "	i=" << i << std::endl;
-		// 	for(int j = 0;j < num_types;j++){
-		// 		std::cout << "		j=" << j << ", size=" << _indices_wx_t[i][j]->size() << std::endl;
-		// 	}
-		// }
-		// std::cout << "cont:" << std::endl;
-		// for(int i = 0;i < _coverage;i++){
-		// 	std::cout << "	i=" << i << ", size=" << _indices_wx_cont[i]->size() << std::endl;
-		// }
-		// std::cout << "ch:" << std::endl;
-		// for(int i = 0;i < _coverage;i++){
-		// 	std::cout << "	i=" << i << ", size=" << _indices_wx_ch[i]->size() << std::endl;
-		// }
 		_glm->init_weights(_char_ids.size());
 		_compiled = true;
 	}
@@ -378,7 +348,7 @@ public:
 		for(const auto &word: words){
 			substr_end += word.length();
 			// 単語ではなく単語を含む部分文字列にする
-			int substr_start = std::max(0, substr_end - _coverage);	// coverageの範囲の文字列を全て取る
+			int substr_start = std::max(0, substr_end - _coverage + 1);	// coverageの範囲の文字列を全て取る
 			std::wstring substr(sentence.begin() + substr_start, sentence.begin() + substr_end + 1);
 			// std::wcout << word << " : " << substr << std::endl;
 			int true_length = word.length();
